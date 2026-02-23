@@ -1,0 +1,306 @@
+<div class="column column--pdf" [class.fullscreen-mode]="isFullscreen">
+  <div class="pdf-header">
+    <h2>2. Xem PDF</h2>
+    <div class="pdf-header-actions">
+      <button 
+        *ngIf="showPdf && !showPlaceholder"
+        (click)="showCoordinates = !showCoordinates"
+        class="toggle-coords-btn"
+        [class.active]="showCoordinates"
+        [title]="showCoordinates ? 'Ẩn thông tin tọa độ' : 'Hiện thông tin tọa độ'">
+        📍 {{ showCoordinates ? 'Ẩn tọa độ' : 'Hiện tọa độ' }}
+      </button>
+      <button 
+        *ngIf="showPdf && !showPlaceholder"
+        (click)="documentService.setShowOcrBboxOnPdf(!documentService.state.showOcrBboxOnPdf)"
+        class="toggle-coords-btn"
+        [class.active]="documentService.state.showOcrBboxOnPdf"
+        [title]="documentService.state.showOcrBboxOnPdf ? 'Ẩn ô bbox OCR' : 'Hiện ô bbox OCR'">
+        📐 {{ documentService.state.showOcrBboxOnPdf ? 'Ẩn bbox OCR' : 'Hiện bbox OCR' }}
+      </button>
+      <button 
+        *ngIf="showPdf && !showPlaceholder"
+        (click)="toggleFullscreen()"
+        class="fullscreen-btn"
+        [title]="isFullscreen ? 'Thoát fullscreen (ESC)' : 'Fullscreen'">
+        {{ isFullscreen ? '⤓' : '⤢' }}
+      </button>
+    </div>
+  </div>
+  <section class="pdf-viewer-wrap" [class.fullscreen]="isFullscreen">
+    <div 
+      #pdfViewerPlaceholder 
+      class="pdf-viewer-placeholder"
+      [style.display]="showPlaceholder ? 'block' : 'none'">
+      Chọn file trong Documents để xem PDF
+    </div>
+    <div class="pdf-container">
+      <!-- Loading indicator -->
+      <div *ngIf="showPdf && isLoadingPdf" class="pdf-loading">
+        Đang tải PDF...
+      </div>
+      <!-- Lỗi tải PDF (đã chọn doc nhưng load thất bại) -->
+      <div *ngIf="showPdf && !isLoadingPdf && pdfLoadError" class="pdf-load-error">
+        <strong>Không tải được PDF</strong>
+        <p>{{ pdfLoadError }}</p>
+        <p class="hint">Đảm bảo API đang chạy tại <code>http://localhost:8100</code> và endpoint <code>/api/docs/.../file</code> cho phép CORS.</p>
+      </div>
+      
+      <!-- Canvas container cho PDF.js -->
+      <div 
+        #pdfCanvasContainer
+        class="pdf-canvas-container"
+        [style.display]="showPdf && !isLoadingPdf && !pdfLoadError ? 'block' : 'none'">
+      </div>
+      
+      <!-- Overlay cho annotations và markers -->
+      <div 
+        #pdfAnnotationsOverlay 
+        class="pdf-annotations-overlay" 
+        [style.display]="showPdf && !isLoadingPdf && !pdfLoadError ? 'block' : 'none'">
+      </div>
+      <!-- Layer riêng để capture mouse events cho hiển thị tọa độ.
+           Luôn bật khi có PDF, panel sẽ chỉ hiện khi showCoordinates = true. -->
+      <div 
+        *ngIf="showPdf && !showPlaceholder"
+        class="pdf-coordinates-capture"
+        (mousemove)="onOverlayMouseMove($event)"
+        (click)="onOverlayClick($event)">
+      </div>
+      <!-- Handle kéo góc để chỉnh vùng (x1,y1); đặt trên cùng để nhận chuột -->
+      <div
+        *ngIf="regionResizeHandle && selectedNode"
+        class="pdf-region-resize-handle"
+        [style.left.px]="regionResizeHandle.leftPx"
+        [style.top.px]="regionResizeHandle.topPx"
+        (mousedown)="onRegionResizeStart($event)"
+        title="Kéo để co lại / kéo dài / rộng ra vùng (x1, y1), sau đó bấm Lưu lại tọa độ">
+      </div>
+      <div 
+        #coordsPanel
+        *ngIf="showPdf && !showPlaceholder && showCoordinates"
+        class="pdf-coordinates-display"
+        (click)="$event.stopPropagation()"
+        [class.has-match]="matchedNode?.node"
+        [class.coords-panel-positioned]="coordsPanelLeft != null"
+        [class.coords-panel-resized]="coordsPanelWidth != null || coordsPanelHeight != null"
+        [style.left.px]="coordsPanelLeft ?? null"
+        [style.top.px]="coordsPanelTop ?? null"
+        [style.width.px]="coordsPanelWidth ?? null"
+        [style.height.px]="coordsPanelHeight ?? null">
+        <div class="coordinates-header coordinates-drag-handle"
+             (mousedown)="onCoordsPanelMouseDown($event)"
+             title="Kéo để đổi vị trí">
+          <strong>Thông tin tọa độ</strong>
+          <button class="coordinates-close" (click)="showCoordinates = false" title="Đóng">×</button>
+        </div>
+        
+        <!-- Tab navigation -->
+        <div class="coordinates-tabs">
+          <button 
+            type="button"
+            class="coordinates-tab"
+            [class.active]="coordsPanelActiveTab === 'node'"
+            (click)="coordsPanelActiveTab = 'node'">
+            Thông tin Node
+          </button>
+          <button 
+            type="button"
+            class="coordinates-tab"
+            [class.active]="coordsPanelActiveTab === 'coordinates'"
+            (click)="coordsPanelActiveTab = 'coordinates'">
+            Tọa độ
+          </button>
+        </div>
+
+        <div class="coordinates-info">
+          <!-- Tab 1: Thông tin node (chỉnh sửa được, lưu thành file mới xxx_ver_x.json) -->
+          <div *ngIf="coordsPanelActiveTab === 'node'" class="coordinates-tab-content">
+            <ng-container *ngIf="selectedNode; else noNodeSelected">
+              <div class="node-detail-section">
+                <div class="node-detail-label">Node: {{ selectedNode.display_number || selectedNode.structure || selectedNode.node_id }}</div>
+                <div class="node-detail-fields">
+                  <div class="node-detail-field">
+                    <div class="node-detail-field-header">
+                      <strong>Full title</strong>
+                      <button type="button" class="btn-field-zoom" (click)="openTextPopup('Full title', selectedNode.full_title || selectedNode.title, 'full_title')" title="Phóng to trong cửa sổ popup">
+                        🔍
+                      </button>
+                    </div>
+                    <input type="text" class="node-detail-input" [ngModel]="selectedNode.full_title || selectedNode.title" (ngModelChange)="selectedNode.full_title = $event; onNodeDetailChange()" />
+                  </div>
+                  <div class="node-detail-field">
+                    <div class="node-detail-field-header">
+                      <strong>Summary</strong>
+                      <button type="button" class="btn-field-zoom" (click)="openTextPopup('Summary', selectedNode.summary || '', 'summary')" title="Phóng to trong cửa sổ popup">
+                        🔍
+                      </button>
+                    </div>
+                    <textarea class="node-detail-textarea" rows="3" [ngModel]="selectedNode.summary" (ngModelChange)="selectedNode.summary = $event; onNodeDetailChange()"></textarea>
+                  </div>
+                  <div class="node-detail-field">
+                    <div class="node-detail-field-header">
+                      <strong>OCR Text</strong>
+                      <button type="button" class="btn-field-zoom" (click)="openTextPopup('OCR Text', selectedNode.ocr_text || '', 'ocr_text')" title="Phóng to trong cửa sổ popup">
+                        🔍
+                      </button>
+                    </div>
+                    <textarea class="node-detail-textarea node-detail-ocr" rows="6" [ngModel]="selectedNode.ocr_text" (ngModelChange)="selectedNode.ocr_text = $event; onNodeDetailChange()"></textarea>
+                  </div>
+                  <!-- Văn bản liên quan (signals từ jsonStructure content.signals) - có nút phóng to, chỉnh sửa JSON, lưu cùng file version mới -->
+                  <div class="node-detail-field node-detail-signals">
+                    <div class="node-detail-field-header">
+                      <strong>Văn bản liên quan</strong>
+                      <button type="button" class="btn-field-zoom" (click)="openTextPopup('Văn bản liên quan', getSignalsJson(), 'signals')" title="Phóng to / chỉnh sửa JSON, đóng popup để cập nhật, lưu file mới để ghi đè">
+                        🔍
+                      </button>
+                    </div>
+                    <div class="signals-block">
+                      <ng-container *ngIf="selectedNodeSignals?.owner?.length || selectedNodeSignals?.docno?.length || selectedNodeSignals?.time?.length; else noSignals">
+                        <ng-container *ngIf="selectedNodeSignals?.owner?.length">
+                          <div class="signals-label">Đơn vị (chủ trì / phối hợp)</div>
+                          <ul class="signals-list">
+                            <li *ngFor="let o of selectedNodeSignals?.owner || []">
+                              <span class="signals-role">{{ o.role }}</span>: {{ o.value }}
+                            </li>
+                          </ul>
+                        </ng-container>
+                        <ng-container *ngIf="selectedNodeSignals?.docno?.length">
+                          <div class="signals-label">Số hiệu văn bản</div>
+                          <ul class="signals-list">
+                            <li *ngFor="let d of selectedNodeSignals?.docno || []">
+                              <span class="signals-kind">{{ d.kind }}</span> {{ d.value }}
+                              <span *ngIf="d.date" class="signals-date"> — ngày {{ d.date }}</span>
+                              <span *ngIf="d.issued_by" class="signals-issued-by"> — của {{ d.issued_by }}</span>
+                            </li>
+                          </ul>
+                        </ng-container>
+                        <ng-container *ngIf="selectedNodeSignals?.time?.length">
+                          <div class="signals-label">Thời gian</div>
+                          <ul class="signals-list">
+                            <li *ngFor="let t of selectedNodeSignals?.time || []">{{ t.value }}</li>
+                          </ul>
+                        </ng-container>
+                      </ng-container>
+                      <ng-template #noSignals>
+                        <div class="signals-empty">Chưa có dữ liệu văn bản liên quan (owner/docno/time).</div>
+                      </ng-template>
+                    </div>
+                  </div>
+                </div>
+                <div class="node-detail-actions">
+                  <button type="button" class="btn-save-new" (click)="saveAsNewVersion()" title="Ghi lại nội dung đã chỉnh sửa vào file mới (tên thêm hậu tố _ver_1, _ver_2, ...)">
+                    💾 Lưu thành file mới (xxx_ver_x.json)
+                  </button>
+                  <span class="save-new-status">{{ saveNewVersionStatus }}</span>
+                </div>
+              </div>
+            </ng-container>
+            <ng-template #noNodeSelected>
+              <div class="coordinates-section">
+                <div class="hint-text">💡 Chọn một node từ cây mục lục để chỉnh sửa thông tin</div>
+              </div>
+            </ng-template>
+          </div>
+
+          <!-- Tab 2: Thông tin tọa độ -->
+          <div *ngIf="coordsPanelActiveTab === 'coordinates'" class="coordinates-tab-content">
+            <!-- Ưu tiên hiển thị theo tọa độ x0, y0 của node (từ JSON) khi có node chọn/khớp -->
+            <div class="coordinates-section">
+              <div><strong>{{ matchedNode?.node ? 'Tọa độ (x0, y0) từ JSON' : 'Tọa độ PDF' }}</strong></div>
+              <ng-container *ngIf="matchedNode?.node; then coordsJsonBlock; else coordsPdfBlock"></ng-container>
+              <ng-template #coordsJsonBlock>
+                <ng-container *ngIf="matchedNode as m">
+                  <div>Page: {{ m.jsonPage ?? 'N/A' }}</div>
+                  <div>x0: {{ m.jsonX0 != null ? (m.jsonX0 | number:'1.2-2') : 'N/A' }}</div>
+                  <div>y0: {{ m.jsonY0 != null ? (m.jsonY0 | number:'1.2-2') : 'N/A' }}</div>
+                  <div class="coordinates-node-title">{{ m.node?.title || m.node?.full_title || '' }}</div>
+                </ng-container>
+              </ng-template>
+              <ng-template #coordsPdfBlock>
+                <div>Page: {{ pdfCoordinates.page ?? 'N/A' }}</div>
+                <div>x: {{ pdfCoordinates.x != null ? (pdfCoordinates.x | number:'1.2-2') : 'N/A' }}</div>
+                <div>y: {{ pdfCoordinates.y != null ? (pdfCoordinates.y | number:'1.2-2') : 'N/A' }}</div>
+              </ng-template>
+            </div>
+            <!-- Vùng (x0,y0,x1,y1) và nút Lưu lại tọa độ khi có node chọn -->
+            <div class="coordinates-section" *ngIf="currentDisplayBbox as bbox">
+              <div><strong>Vùng tọa độ (x0, y0, x1, y1)</strong></div>
+              <div>Page: {{ bbox.page }}</div>
+              <div>x0: {{ bbox.x0 | number:'1.2-2' }} — x1: {{ bbox.x1 | number:'1.2-2' }}</div>
+              <div>y0: {{ bbox.y0 | number:'1.2-2' }} — y1: {{ bbox.y1 | number:'1.2-2' }}</div>
+              <div class="coordinates-bbox-hint">Kéo góc dưới-phải vùng trên PDF để chỉnh x1, y1, rồi bấm Lưu lại.</div>
+              <button type="button" class="btn-save-bbox" (click)="saveBboxToJson()" title="Ghi (x0,y0,x1,y1) vào JSON và cập nhật màn hình">
+                Lưu lại tọa độ
+              </button>
+            </div>
+            
+            <div class="coordinates-separator" *ngIf="!matchedNode?.node"></div>
+            <div class="coordinates-section" *ngIf="!matchedNode?.node">
+              <div class="hint-text">💡 Click vào PDF hoặc chọn mục trong cây mục lục để xem tọa độ (x0, y0)</div>
+            </div>
+            
+            <!-- Vị trí click (khi user click trên PDF, để so sánh với x0,y0) -->
+            <div class="coordinates-separator" *ngIf="matchedNode?.node"></div>
+            <div class="coordinates-section" *ngIf="matchedNode?.node">
+              <div><strong>Vị trí click trên PDF:</strong></div>
+              <div>Page: {{ pdfCoordinates.page ?? 'N/A' }}</div>
+              <div>x: {{ pdfCoordinates.x != null ? (pdfCoordinates.x | number:'1.2-2') : 'N/A' }}</div>
+              <div>y: {{ pdfCoordinates.y != null ? (pdfCoordinates.y | number:'1.2-2') : 'N/A' }}</div>
+            </div>
+            
+            <div class="coordinates-separator" *ngIf="matchedNode?.node"></div>
+            
+            <div class="coordinates-section" *ngIf="matchedNode as m">
+              <div><strong>Đánh giá:</strong></div>
+              <div class="accuracy-badge" [class.accuracy-exact]="m.accuracy === 'exact'"
+                   [class.accuracy-close]="m.accuracy === 'close'"
+                   [class.accuracy-far]="m.accuracy === 'far'"
+                   [class.accuracy-not-found]="m.accuracy === 'not_found'">
+                <span *ngIf="m.accuracy === 'exact'">✓ Đúng</span>
+                <span *ngIf="m.accuracy === 'close'">~ Gần đúng</span>
+                <span *ngIf="m.accuracy === 'far'">✗ Sai (lệch xa)</span>
+                <span *ngIf="m.accuracy === 'not_found'">? Không tìm thấy</span>
+              </div>
+              <div *ngIf="m.distance !== undefined" class="distance-info">
+                Khoảng cách: {{ m.distance.toFixed(2) }} points
+              </div>
+              <div *ngIf="m.distance !== undefined && pdfCoordinates.x && m.jsonX0" class="offset-info">
+                Lệch X: {{ (pdfCoordinates.x - m.jsonX0).toFixed(2) }} points
+              </div>
+              <div *ngIf="m.distance !== undefined && pdfCoordinates.y && m.jsonY0" class="offset-info">
+                Lệch Y: {{ (pdfCoordinates.y - m.jsonY0).toFixed(2) }} points
+              </div>
+            </div>
+            
+            <div class="coordinates-section" *ngIf="!matchedNode?.node">
+              <div class="no-match">Không tìm thấy node nào trên trang {{ pdfCoordinates.page }}</div>
+            </div>
+          </div>
+        </div>
+        <div class="coordinates-resize-handle"
+             (mousedown)="onCoordsPanelResizeMouseDown($event)"
+             title="Kéo để to/nhỏ panel">
+          ⋰
+        </div>
+      </div>
+
+      <!-- Popup phóng to nội dung (Full title / Text / Summary / OCR Text) - kéo thả header, co giãn góc dưới-phải -->
+      <div *ngIf="textPopup" class="text-popup-backdrop" (click)="closeTextPopup()">
+        <div class="text-popup-box"
+             [style.left.px]="textPopupPosition?.left"
+             [style.top.px]="textPopupPosition?.top"
+             [style.width.px]="textPopupSize?.width"
+             [style.height.px]="textPopupSize?.height"
+             (click)="$event.stopPropagation()">
+          <div class="text-popup-header text-popup-drag-handle" (mousedown)="onTextPopupDragStart($event)">
+            <strong>{{ textPopup.title }}</strong>
+            <button type="button" class="text-popup-close" (click)="closeTextPopup()" title="Đóng">×</button>
+          </div>
+          <textarea class="text-popup-content text-popup-edit" [(ngModel)]="textPopupEditContent" [placeholder]="textPopup.field === 'signals' ? 'Chỉnh sửa JSON (owner, docno, time), đóng popup để cập nhật. Lưu file mới (xxx_ver_x.json) để ghi ra đĩa.' : 'Chỉnh sửa nội dung, đóng popup để cập nhật vào thông tin tọa độ'"></textarea>
+          <div class="text-popup-resize-handle" (mousedown)="onTextPopupResizeStart($event)" title="Kéo để thay đổi kích thước">⋰</div>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>

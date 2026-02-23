@@ -1,0 +1,57 @@
+<div class="node-editor" *ngIf="node">
+  <div class="node-editor-header">
+    <h3>Node: {{ node.display_number || node.structure }}</h3>
+    <span class="node-id">id: {{ node.node_id }}</span>
+  </div>
+
+  <form [formGroup]="form" class="node-editor-form">
+    <label>
+      <span class="label">Full title</span>
+      <textarea formControlName="full_title" rows="2"></textarea>
+    </label>
+
+    <label>
+      <span class="label">Summary</span>
+      <textarea formControlName="summary" rows="3"></textarea>
+    </label>
+  </form>
+
+  <div class="node-editor-ocr" *ngIf="node.ocr_text">
+    <div class="ocr-header">
+      <span class="label">OCR Text</span>
+      <span class="ocr-info">(từ PDF)</span>
+    </div>
+    <div class="ocr-content">
+      {{ node.ocr_text }}
+    </div>
+  </div>
+
+  <div class="node-editor-actions">
+    <button type="button" (click)="autoMapBlocks.emit()">
+      Auto-map blocks (MVP)
+    </button>
+  </div>
+
+  <div class="node-editor-sourcemap" *ngIf="node.source_map">
+    <div class="sourcemap-header">
+      <span>Source map</span>
+      <span class="pages">
+        p{{ node.source_map.page_start }}–{{ node.source_map.page_end }}
+      </span>
+    </div>
+    <div class="sourcemap-blocks">
+      <div
+        class="sourcemap-block"
+        *ngFor="let b of node.source_map.mapped_blocks">
+        <span class="badge">p{{ b.page }}#{{ b.block_idx }}</span>
+        <span class="text">
+          {{ b.text }}
+        </span>
+        <span class="score" *ngIf="b.match !== undefined">
+          {{ (b.match * 100) | number : '1.0-0' }}%
+        </span>
+      </div>
+    </div>
+  </div>
+</div>
+

@@ -1,0 +1,58 @@
+<div class="column column--json-editor">
+  <div class="editor-header-row">
+    <h2 style="margin:0;">3. JSON / Structure Editor</h2>
+    <span class="small">DocId: <code>{{ editorDocId }}</code></span>
+    <span class="small">File: <code>{{ editorFilename }}</code></span>
+    <button (click)="loadEditor()">Load</button>
+    <button (click)="validateEditor()">Validate</button>
+    <button (click)="saveEditor()">Save (overwrite)</button>
+    <span class="small">{{ editorStatus }}</span>
+    <div class="editor-tabs" style="margin:0;">
+      <button 
+        type="button" 
+        class="editor-tab" 
+        [class.active]="activeTab === 'json'"
+        (click)="switchTab('json')">
+        JSON
+      </button>
+      <button 
+        type="button" 
+        class="editor-tab" 
+        [class.active]="activeTab === 'markdown'"
+        (click)="switchTab('markdown')">
+        Markdown
+      </button>
+    </div>
+  </div>
+
+  <app-structure-tree
+    *ngIf="structureNodes.length"
+    [nodes]="structureNodes"
+    [selectedNodeId]="selectedStructureNode?.node_id || null"
+    (nodeSelected)="onStructureNodeSelected($event)">
+  </app-structure-tree>
+
+  <div class="json-editor-scroll-body">
+    <section class="editor-section-scroll">
+   
+    
+    <div *ngIf="activeTab === 'markdown'" class="editor-panel editor-panel--markdown">
+      <div class="NgxEditor__Wrapper">
+        <ngx-editor-menu [editor]="editor"></ngx-editor-menu>
+        <ngx-editor
+          [editor]="editor"
+          [(ngModel)]="markdownEditorHtml"
+          [placeholder]="'Chọn doc + file, bấm Load để đọc file .md vào editor.'">
+        </ngx-editor>
+      </div>
+      <!-- <div #markdownPreview class="markdown-preview markdown-body">
+        <markdown [data]="markdownContent"></markdown>
+      </div> -->
+    </div>
+    </section>
+  </div>
+
+  <!-- <section class="validate-result-box">
+    <div [innerHTML]="validateResult"></div>
+  </section> -->
+</div>

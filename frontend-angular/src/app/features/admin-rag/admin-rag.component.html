@@ -1,0 +1,21 @@
+<header class="admin-rag-header">
+  <div class="header-left">
+    <a routerLink="/" class="back-link" title="Về trang chủ">←</a>
+    <h1>{{ title }}</h1>
+    <span class="small">Backend: <code>{{ apiBase }}</code></span>
+  </div>
+</header>
+
+<main class="main-content" [class.docs-collapsed]="docsCollapsed">
+  <button
+    *ngIf="docsCollapsed"
+    class="expand-docs-btn"
+    (click)="toggleDocs()"
+    title="Mở rộng Docs"
+    aria-label="Mở rộng Docs">
+    ◀
+  </button>
+  <app-docs [collapsed]="docsCollapsed" (toggleCollapse)="toggleDocs()"></app-docs>
+  <app-pdf-viewer></app-pdf-viewer>
+  <app-json-editor></app-json-editor>
+</main>

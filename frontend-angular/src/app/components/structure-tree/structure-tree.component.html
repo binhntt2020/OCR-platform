@@ -1,0 +1,37 @@
+<div class="structure-tree" *ngIf="nodes?.length; else emptyTree">
+  <div class="structure-tree-header">
+    <h3>Cây mục lục</h3>
+    <span class="count">{{ nodes.length }} mục</span>
+  </div>
+
+  <ul class="structure-tree-list">
+    <li
+      *ngFor="let node of nodes; trackBy: trackByNodeId"
+      (click)="onSelect(node)"
+      [class.active]="node.node_id === selectedNodeId"
+      [style.padding-left.px]="node.level * 12">
+      <div class="structure-tree-item">
+        <span class="structure-prefix">
+          {{ node.display_number || node.structure }}
+        </span>
+        <span class="structure-title">
+          {{ getDisplayTitle(node) }}
+        </span>
+        <span class="structure-pages" *ngIf="node.anchors_full_range">
+          p{{ node.anchors_full_range.start_page }}–{{ node.anchors_full_range.end_page }}
+        </span>
+        <span class="structure-qc" *ngIf="node.qc">
+          <span class="badge badge-short" *ngIf="(node.qc?.text_length ?? 0) < 80">short</span>
+          <span class="badge badge-leak" *ngIf="node.qc?.boundary_leak">leak</span>
+        </span>
+      </div>
+    </li>
+  </ul>
+</div>
+
+<ng-template #emptyTree>
+  <div class="structure-tree-empty">
+    Không có cấu trúc nào (chọn file *structure.json* trước).
+  </div>
+</ng-template>
+

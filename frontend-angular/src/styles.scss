@@ -1,0 +1,80 @@
+html {
+  overflow-y: scroll;
+  overflow-x: auto;
+}
+
+body {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  margin: 0;
+  padding: 0;
+  background: #0f172a;
+  color: #e5e7eb;
+  min-height: 100vh;
+  overflow-x: auto;
+}
+
+header {
+  padding: 12px 20px;
+  background: #020617;
+  border-bottom: 1px solid #1e293b;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-shrink: 0;
+
+  h1 {
+    font-size: 16px;
+    margin: 0;
+  }
+}
+
+.main-content {
+  display: grid;
+  grid-template-columns: 1.2fr 1.2fr 1.6fr;
+  gap: 12px;
+  padding: 12px;
+  height: calc(100vh - 56px);
+  min-height: 0;
+  box-sizing: border-box;
+  align-items: stretch;
+}
+
+.small {
+  font-size: 11px;
+  opacity: 0.8;
+}
+
+code {
+  font-size: 11px;
+  background: #020617;
+  padding: 2px 4px;
+  border-radius: 3px;
+}
+
+button {
+  font-size: 12px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  border: 1px solid #4b5563;
+  background: #111827;
+  color: #e5e7eb;
+  cursor: pointer;
+  margin-right: 4px;
+  margin-bottom: 4px;
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+}
+
+.badge-ok {
+  color: #4ade80;
+}
+
+.badge-fail {
+  color: #fb7185;
+}
+
+// Import github-markdown-css for beautiful markdown styling
+@import 'github-markdown-css/github-markdown.css';

@@ -1,0 +1,1000 @@
+.column {
+  border: 1px solid #1e293b;
+  border-radius: 8px;
+  padding: 10px;
+  background: #020617;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+  overflow: hidden;
+
+  &.column--pdf {
+    overflow: hidden;
+    height: 100%;
+  }
+}
+
+h2 {
+  font-size: 14px;
+  margin: 0;
+}
+
+.pdf-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-shrink: 0;
+  margin-bottom: 4px;
+}
+
+.pdf-header-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.toggle-coords-btn {
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 4px;
+  border: 1px solid #4b5563;
+  background: #111827;
+  color: #e5e7eb;
+  cursor: pointer;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  white-space: nowrap;
+
+  &:hover {
+    background: #1e293b;
+    border-color: #38bdf8;
+    color: #38bdf8;
+  }
+
+  &.active {
+    background: rgba(56, 189, 248, 0.2);
+    border-color: #38bdf8;
+    color: #38bdf8;
+  }
+}
+
+.fullscreen-btn {
+  font-size: 16px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  border: 1px solid #4b5563;
+  background: #111827;
+  color: #e5e7eb;
+  cursor: pointer;
+  min-width: 32px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+
+  &:hover {
+    background: #1e293b;
+    border-color: #38bdf8;
+    color: #38bdf8;
+  }
+}
+
+.pdf-viewer-wrap {
+  margin-top: 0;
+  border: 1px solid #1e293b;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #0f172a;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.column--pdf {
+  transition: all 0.3s ease;
+
+  &.fullscreen-mode {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    z-index: 9999 !important;
+    margin: 0 !important;
+    padding: 10px !important;
+    border-radius: 0 !important;
+    background: #020617 !important;
+    border: none !important;
+  }
+}
+
+.pdf-viewer-wrap.fullscreen {
+  height: calc(100vh - 60px) !important;
+  margin-top: 0 !important;
+  border-radius: 0 !important;
+}
+
+.pdf-container {
+  position: relative;
+  width: 100%;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  
+  // Canvas container scrollable
+  .pdf-canvas-container {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+}
+
+.pdf-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  color: #9ca3af;
+  font-size: 14px;
+}
+
+.pdf-load-error {
+  padding: 24px;
+  color: #fca5a5;
+  font-size: 13px;
+  background: rgba(127, 29, 29, 0.2);
+  border: 1px solid #b91c1c;
+  border-radius: 8px;
+  margin: 8px;
+
+  strong {
+    display: block;
+    margin-bottom: 8px;
+  }
+
+  p {
+    margin: 0 0 8px;
+  }
+
+  .hint {
+    color: #94a3b8;
+    font-size: 12px;
+    margin-top: 12px;
+  }
+
+  code {
+    background: rgba(0, 0, 0, 0.3);
+    padding: 2px 6px;
+    border-radius: 4px;
+  }
+}
+
+.pdf-canvas-container {
+  width: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  position: relative;
+  
+  .pdf-page-canvas {
+    display: block;
+    margin: 0 auto;
+    margin-bottom: 10px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  }
+}
+
+.pdf-embed {
+  width: 100%;
+  flex: 1;
+  min-height: 0;
+  border: none;
+  display: block;
+}
+
+.pdf-viewer-placeholder {
+  padding: 24px;
+  text-align: center;
+  color: #64748b;
+  font-size: 12px;
+}
+
+.pdf-annotations-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none; // Background không chặn click vào PDF
+  z-index: 100;
+  overflow: visible;
+
+  &.active {
+    pointer-events: none; // Background không chặn click
+  }
+
+  // Chỉ các marker/icon mới có pointer events
+  .pdf-annotation-marker,
+  .pdf-start-marker {
+    pointer-events: auto;
+  }
+
+  /* Vùng khoanh (x0,y0)->(x1,y1) từ JSON */
+  .pdf-node-region {
+    position: absolute;
+    border: 2px solid rgba(56, 189, 248, 0.9);
+    background-color: rgba(56, 189, 248, 0.12);
+    pointer-events: none;
+    z-index: 100;
+    border-radius: 2px;
+  }
+
+}
+
+.pdf-annotation-marker {
+  position: absolute;
+  pointer-events: auto;
+  cursor: pointer;
+  font-size: 20px;
+  color: #38bdf8;
+  background: rgba(15, 23, 42, 0.8);
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid #38bdf8;
+  transition: all 0.2s;
+
+  &:hover {
+    background: rgba(56, 189, 248, 0.2);
+    transform: scale(1.2);
+  }
+}
+
+.pdf-content-popup {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: #020617;
+  border: 2px solid #1e293b;
+  border-radius: 8px;
+  padding: 20px;
+  max-width: 600px;
+  max-height: 80vh;
+  overflow-y: auto;
+  z-index: 1000;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+}
+
+.pdf-content-popup-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #1e293b;
+
+  h3 {
+    margin: 0;
+    font-size: 16px;
+    color: #38bdf8;
+  }
+}
+
+.pdf-content-popup-close {
+  background: none;
+  border: none;
+  color: #94a3b8;
+  font-size: 24px;
+  cursor: pointer;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+
+  &:hover {
+    background: #1e293b;
+    color: #e5e7eb;
+  }
+}
+
+.pdf-content-popup-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid #1e293b;
+}
+
+.pdf-content-popup-tab {
+  padding: 8px 16px;
+  background: none;
+  border: none;
+  color: #94a3b8;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+
+  &.active {
+    color: #38bdf8;
+    border-bottom-color: #38bdf8;
+  }
+}
+
+.pdf-content-popup-content {
+  font-size: 13px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
+.pdf-content-popup-panel {
+  display: none;
+
+  &.active {
+    display: block;
+  }
+}
+
+.pdf-start-marker {
+  position: absolute;
+  pointer-events: auto;
+  cursor: pointer;
+  user-select: none;
+  transition: transform 0.2s ease;
+
+  &:hover {
+    transform: scale(1.2);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(1.1);
+  }
+}
+
+/* Panel luôn dính theo màn hình; kéo header đổi vị trí, kéo góc dưới-phải để to/nhỏ */
+.pdf-coordinates-display {
+  position: fixed;
+  top: 12px;
+  right: 12px;
+  display: flex;
+  flex-direction: column;
+  background: rgba(2, 6, 23, 0.95);
+  border: 2px solid #38bdf8;
+  border-radius: 6px;
+  padding: 12px;
+  padding-bottom: 6px;
+  font-size: 11px;
+  font-family: 'Courier New', monospace;
+  color: #e5e7eb;
+  z-index: 200;
+  min-width: 200px;
+  max-width: 350px;
+  max-height: 85vh;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+  pointer-events: auto;
+  user-select: none;
+  transition: box-shadow 0.2s ease;
+
+  &.coords-panel-positioned {
+    right: auto;
+  }
+
+  /* Khi đã kéo to/nhỏ thì bỏ giới hạn max để panel rộng/cao theo ý user */
+  &.coords-panel-resized {
+    max-width: none;
+    max-height: none;
+  }
+
+  &.has-match {
+    min-width: 280px;
+    border-color: #60a5fa;
+  }
+}
+
+.coordinates-info {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.coordinates-resize-handle {
+  flex-shrink: 0;
+  height: 18px;
+  margin: 4px -6px -6px;
+  padding: 0 10px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  cursor: nwse-resize;
+  color: #64748b;
+  font-size: 16px;
+  line-height: 1;
+  border-radius: 0 0 4px 4px;
+  user-select: none;
+  pointer-events: auto;
+  position: relative;
+  z-index: 1;
+
+  &:hover {
+    color: #38bdf8;
+    background: rgba(56, 189, 248, 0.15);
+  }
+}
+
+.coordinates-drag-handle {
+  cursor: move;
+  user-select: none;
+
+  &:active {
+    cursor: grabbing;
+  }
+}
+
+.coordinates-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid #1e293b;
+
+  strong {
+    color: #38bdf8;
+    font-weight: 600;
+    font-size: 10px;
+  }
+}
+
+.coordinates-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 6px;
+  border-bottom: 1px solid #1e293b;
+}
+
+.coordinates-tab {
+  flex: 1;
+  padding: 4px 8px;
+  font-size: 10px;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: #94a3b8;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: center;
+
+  &:hover {
+    color: #e5e7eb;
+    background: rgba(56, 189, 248, 0.1);
+  }
+
+  &.active {
+    color: #38bdf8;
+    border-bottom-color: #38bdf8;
+    background: rgba(56, 189, 248, 0.15);
+  }
+}
+
+.coordinates-tab-content {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.coordinates-close {
+  background: none;
+  border: none;
+  color: #94a3b8;
+  font-size: 20px;
+  cursor: pointer;
+  padding: 0;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  line-height: 1;
+
+  &:hover {
+    background: #1e293b;
+    color: #e5e7eb;
+  }
+}
+
+.coordinates-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  line-height: 1.4;
+  user-select: text;
+}
+
+.coordinates-section {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+
+  strong {
+    color: #38bdf8;
+    font-weight: 600;
+    margin-bottom: 1px;
+    font-size: 10px;
+  }
+
+  div {
+    color: #cbd5e1;
+    font-size: 10px;
+  }
+}
+
+.node-title {
+  color: #60a5fa !important;
+  font-weight: 500;
+  margin: 4px 0;
+  word-break: break-word;
+}
+
+.coordinates-node-title {
+  color: #93c5fd;
+  font-size: 10px;
+  margin-top: 2px;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: 1.3;
+}
+
+/* Thông tin node (Full title, Text, Summary, OCR) bên dưới panel tọa độ */
+.node-detail-section {
+  margin-top: 0;
+  padding: 8px;
+  padding-top: 6px;
+  background: rgba(15, 23, 42, 0.3);
+  border-radius: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.node-detail-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.node-detail-label {
+  font-weight: 700;
+  color: #38bdf8;
+  font-size: 11px;
+  margin-bottom: 4px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid rgba(56, 189, 248, 0.3);
+}
+
+.node-detail-field-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.btn-field-zoom {
+  padding: 2px 6px;
+  font-size: 12px;
+  background: rgba(56, 189, 248, 0.2);
+  color: #38bdf8;
+  border: 1px solid rgba(56, 189, 248, 0.5);
+  border-radius: 4px;
+  cursor: pointer;
+  flex-shrink: 0;
+
+  &:hover {
+    background: rgba(56, 189, 248, 0.35);
+    border-color: #38bdf8;
+  }
+}
+
+.node-detail-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px;
+  background: rgba(15, 23, 42, 0.2);
+  border-radius: 4px;
+  border: 1px solid rgba(51, 65, 85, 0.5);
+
+  strong {
+    color: #cbd5e1;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+}
+
+.node-detail-value {
+  color: #e2e8f0;
+  font-size: 11px;
+  line-height: 1.5;
+  word-break: break-word;
+  white-space: pre-wrap;
+}
+
+.node-detail-input {
+  width: 100%;
+  padding: 6px 8px;
+  font-size: 11px;
+  color: #e2e8f0;
+  background: rgba(2, 6, 23, 0.8);
+  border: 1px solid #475569;
+  border-radius: 4px;
+  margin-top: 2px;
+  transition: border-color 0.2s;
+
+  &:focus {
+    outline: none;
+    border-color: #38bdf8;
+    background: rgba(2, 6, 23, 0.95);
+  }
+}
+
+.node-detail-textarea {
+  width: 100%;
+  padding: 6px 8px;
+  font-size: 11px;
+  line-height: 1.5;
+  color: #e2e8f0;
+  background: rgba(2, 6, 23, 0.8);
+  border: 1px solid #475569;
+  border-radius: 4px;
+  margin-top: 2px;
+  resize: vertical;
+  min-height: 60px;
+  transition: border-color 0.2s;
+
+  &:focus {
+    outline: none;
+    border-color: #38bdf8;
+    background: rgba(2, 6, 23, 0.95);
+  }
+}
+
+.node-detail-text,
+.node-detail-ocr {
+  max-height: 150px;
+  overflow-y: auto;
+}
+
+.node-detail-signals {
+  .signals-block {
+    margin-top: 4px;
+    padding: 8px;
+    background: rgba(2, 6, 23, 0.6);
+    border: 1px solid #475569;
+    border-radius: 4px;
+    font-size: 11px;
+    color: #e2e8f0;
+  }
+  .signals-label {
+    font-weight: 600;
+    margin-bottom: 4px;
+    color: #94a3b8;
+  }
+  .signals-list {
+    margin: 0 0 8px 0;
+    padding-left: 16px;
+    list-style: disc;
+    &:last-child { margin-bottom: 0; }
+  }
+  .signals-role,
+  .signals-kind {
+    color: #38bdf8;
+    font-weight: 500;
+  }
+  .signals-date,
+  .signals-issued-by {
+    color: #94a3b8;
+    font-size: 10px;
+  }
+  .signals-empty {
+    color: #64748b;
+    font-style: italic;
+    padding: 4px 0;
+  }
+}
+
+.node-detail-actions {
+  margin-top: 12px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(51, 65, 85, 0.5);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.btn-save-new {
+  padding: 8px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  background: #0ea5e9;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.2s;
+
+  &:hover {
+    background: #0284c7;
+  }
+}
+
+.save-new-status {
+  font-size: 10px;
+  color: #94a3b8;
+}
+
+.coordinates-bbox-hint {
+  font-size: 9px;
+  color: #94a3b8;
+  margin: 3px 0;
+  line-height: 1.3;
+}
+
+.btn-save-bbox {
+  margin-top: 4px;
+  padding: 4px 8px;
+  font-size: 10px;
+  background: #0ea5e9;
+  color: #fff;
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+
+  &:hover {
+    background: #0284c7;
+  }
+}
+
+.accuracy-badge {
+  display: inline-block;
+  padding: 3px 6px;
+  border-radius: 3px;
+  font-weight: 600;
+  margin: 3px 0;
+  font-size: 10px;
+
+  &.accuracy-exact {
+    background: rgba(34, 197, 94, 0.2);
+    color: #4ade80;
+    border: 1px solid #4ade80;
+  }
+
+  &.accuracy-close {
+    background: rgba(251, 191, 36, 0.2);
+    color: #fbbf24;
+    border: 1px solid #fbbf24;
+  }
+
+  &.accuracy-far {
+    background: rgba(239, 68, 68, 0.2);
+    color: #ef4444;
+    border: 1px solid #ef4444;
+  }
+
+  &.accuracy-not-found {
+    background: rgba(148, 163, 184, 0.2);
+    color: #94a3b8;
+    border: 1px solid #94a3b8;
+  }
+}
+
+.distance-info,
+.offset-info {
+  color: #94a3b8 !important;
+  font-size: 9px;
+  margin-left: 6px;
+  margin-top: 1px;
+}
+
+.no-match {
+  color: #94a3b8;
+  font-style: italic;
+  font-size: 10px;
+}
+
+.hint-text {
+  color: #60a5fa;
+  font-size: 10px;
+  font-style: italic;
+  margin-top: 4px;
+}
+
+.calibrate-btn {
+  background: rgba(56, 189, 248, 0.2);
+  border: 1px solid #38bdf8;
+  color: #38bdf8;
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 500;
+  margin-top: 6px;
+  transition: all 0.2s;
+  width: 100%;
+
+  &:hover {
+    background: rgba(56, 189, 248, 0.3);
+    border-color: #60a5fa;
+    color: #60a5fa;
+  }
+
+  &:active {
+    transform: scale(0.98);
+  }
+}
+
+.calibration-status {
+  color: #4ade80;
+  font-size: 10px;
+  margin-top: 4px;
+  font-weight: 500;
+}
+
+.coordinates-separator {
+  height: 1px;
+  background: #1e293b;
+  margin: 4px 0;
+  width: 100%;
+}
+
+.pdf-coordinates-capture {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: auto;
+  z-index: 99; // Thấp hơn overlay để không chặn markers
+  cursor: crosshair;
+  background: transparent;
+}
+
+.pdf-region-resize-handle {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  z-index: 110;
+  cursor: nwse-resize;
+  background: rgba(56, 189, 248, 0.85);
+  border: 2px solid rgba(56, 189, 248, 1);
+  border-radius: 2px;
+  pointer-events: auto;
+  &:hover {
+    background: rgba(56, 189, 248, 1);
+  }
+}
+
+/* Popup phóng to nội dung (Full title / Text / Summary / OCR Text) */
+.text-popup-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.text-popup-box {
+  position: fixed;
+  background: #0f172a;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  min-width: 320px;
+  min-height: 200px;
+  max-width: 90vw;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+}
+
+.text-popup-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid #1e293b;
+  flex-shrink: 0;
+
+  strong {
+    color: #38bdf8;
+    font-size: 14px;
+  }
+}
+
+.text-popup-drag-handle {
+  cursor: move;
+  user-select: none;
+}
+
+.text-popup-resize-handle {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 20px;
+  height: 20px;
+  cursor: nwse-resize;
+  color: #64748b;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  user-select: none;
+
+  &:hover {
+    color: #94a3b8;
+  }
+}
+
+.text-popup-close {
+  background: none;
+  border: none;
+  color: #94a3b8;
+  font-size: 24px;
+  cursor: pointer;
+  padding: 0 4px;
+  line-height: 1;
+
+  &:hover {
+    color: #e2e8f0;
+  }
+}
+
+.text-popup-content {
+  flex: 1;
+  padding: 20px 24px;
+  overflow-y: auto;
+  font-size: 16px;
+  line-height: 1.6;
+  color: #e2e8f0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  min-height: 0;
+
+  &.text-popup-edit {
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+    border: none;
+    outline: none;
+    resize: none;
+    background: rgba(30, 41, 59, 0.6);
+    font-family: inherit;
+  }
+}

@@ -1,0 +1,689 @@
+.column {
+  border: 1px solid #1e293b;
+  border-radius: 8px;
+  padding: 10px;
+  background: #020617;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+  overflow: hidden;
+
+  &.column--json-editor {
+    height: 100%;
+  }
+}
+
+// Cây mục lục cố định phía trên, không cuộn theo nội dung bên dưới
+app-structure-tree {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+// Khối cuộn: chỉ phần dưới (node editor + markdown) cuộn, cây mục lục luôn hiển thị phía trên
+.json-editor-scroll-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.editor-header-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  padding: 6px 0;
+  border-bottom: 1px solid #1e293b;
+  margin-bottom: 8px;
+  flex-shrink: 0;
+
+  .small {
+    white-space: nowrap;
+  }
+
+  .editor-tabs {
+    display: flex;
+  }
+}
+
+h2 {
+  font-size: 14px;
+  margin: 0 0 4px;
+}
+
+.editor-section-scroll {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.editor-panel {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.editor-tabs {
+  display: flex;
+  gap: 2px;
+  margin-bottom: 6px;
+  flex-shrink: 0;
+}
+
+.editor-tab {
+  padding: 6px 12px;
+  font-size: 12px;
+  border: 1px solid #1e293b;
+  border-radius: 6px 6px 0 0;
+  background: #0f172a;
+  color: #94a3b8;
+  cursor: pointer;
+
+  &:hover {
+    color: #e5e7eb;
+    background: #1e293b;
+  }
+
+  &.active {
+    background: #020617;
+    color: #38bdf8;
+    border-bottom-color: #020617;
+    margin-bottom: -1px;
+  }
+}
+
+.markdown-preview-wrapper {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column; // Không chia làm 2 cột, chỉ còn một khối nội dung
+  overflow: hidden;
+}
+
+.markdown-toc {
+  // Ẩn panel Mục lục riêng, chỉ dùng nội dung .md
+  display: none;
+  width: 0;
+  min-width: 0;
+  max-width: 0;
+  padding: 0;
+  border: none;
+
+  &-header {
+    font-weight: 600;
+    color: #38bdf8;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 2px solid #1e293b;
+    font-size: 16px;
+  }
+
+  ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  li {
+    padding: 6px 0;
+    margin: 0;
+  }
+
+  a {
+    color: #cbd5e1;
+    text-decoration: none;
+    display: block;
+    padding: 6px 12px;
+    border-radius: 6px;
+    transition: all 0.2s;
+    word-wrap: break-word;
+    line-height: 1.5;
+
+    &:hover {
+      color: #38bdf8;
+      background: rgba(56, 189, 248, 0.15);
+      transform: translateX(4px);
+    }
+
+    &.toc-active {
+      color: #38bdf8;
+      background: rgba(56, 189, 248, 0.2);
+      font-weight: 600;
+      border-left: 3px solid #38bdf8;
+      padding-left: 9px;
+    }
+  }
+
+  .toc-level-1 { 
+    padding-left: 0; 
+    font-weight: 600;
+    margin-top: 8px;
+    
+    a {
+      font-size: 14px;
+    }
+  }
+  .toc-level-2 { 
+    padding-left: 16px; 
+    margin-top: 4px;
+  }
+  .toc-level-3 { 
+    padding-left: 32px; 
+    margin-top: 2px;
+  }
+  .toc-level-4 { 
+    padding-left: 48px; 
+  }
+  .toc-level-5 { 
+    padding-left: 64px; 
+  }
+  .toc-level-6 { 
+    padding-left: 80px; 
+  }
+}
+
+.markdown-preview {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 24px 32px;
+  font-size: 14px;
+  line-height: 1.7;
+  color: #e5e7eb;
+  scroll-behavior: smooth;
+  
+  // Override github-markdown-css for dark theme
+  &.markdown-body {
+    background: #0f172a !important;
+    color: #e5e7eb !important;
+    
+    // Dark theme overrides for github-markdown-css
+    --color-canvas-default: #0f172a;
+    --color-canvas-subtle: #020617;
+    --color-border-default: #1e293b;
+    --color-border-muted: #334155;
+    --color-fg-default: #e5e7eb;
+    --color-fg-muted: #94a3b8;
+    --color-fg-subtle: #64748b;
+    --color-neutral-muted: rgba(148, 163, 184, 0.1);
+    --color-accent-emphasis: #38bdf8;
+    --color-success-emphasis: #4ade80;
+    --color-danger-emphasis: #fb7185;
+    
+    // Override github-markdown-css colors for dark theme
+    h1, h2, h3, h4, h5, h6 {
+      color: #f1f5f9 !important;
+      border-color: #1e293b !important;
+    }
+    
+    p, li, td {
+      color: #cbd5e1 !important;
+    }
+    
+    code {
+      background: rgba(56, 189, 248, 0.1) !important;
+      color: #38bdf8 !important;
+    }
+    
+    pre {
+      background: #1e293b !important;
+      border-color: #334155 !important;
+      
+      code {
+        background: transparent !important;
+        color: #e5e7eb !important;
+      }
+    }
+    
+    blockquote {
+      border-left-color: #38bdf8 !important;
+      background: rgba(56, 189, 248, 0.05) !important;
+      color: #94a3b8 !important;
+    }
+    
+    table {
+      border-color: #334155 !important;
+      
+      th {
+        background: #1e293b !important;
+        color: #f1f5f9 !important;
+      }
+      
+      td {
+        border-color: #334155 !important;
+      }
+    }
+    
+    a {
+      color: #38bdf8 !important;
+    }
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    position: relative;
+    transition: all 0.2s ease;
+    
+    &:hover {
+      color: #38bdf8 !important;
+    }
+    
+    &.markdown-heading-highlighted {
+      background: rgba(59, 130, 246, 0.15);
+      border-left: 4px solid #3b82f6;
+      padding-left: 12px;
+      margin-left: -12px;
+      border-radius: 4px;
+      animation: highlightPulse 0.5s ease;
+    }
+  }
+  
+  @keyframes highlightPulse {
+    0% {
+      background: rgba(59, 130, 246, 0.3);
+    }
+    100% {
+      background: rgba(59, 130, 246, 0.15);
+    }
+  }
+
+  h1 {
+    margin-top: 1.5em;
+    margin-bottom: 0.8em;
+    color: #f1f5f9;
+    font-size: 2em;
+    font-weight: 700;
+    border-bottom: 2px solid #1e293b;
+    padding-bottom: 0.5em;
+  }
+
+  h2 {
+    margin-top: 1.3em;
+    margin-bottom: 0.7em;
+    color: #f1f5f9;
+    font-size: 1.5em;
+    font-weight: 600;
+    border-bottom: 1px solid #1e293b;
+    padding-bottom: 0.4em;
+  }
+
+  h3 {
+    margin-top: 1.2em;
+    margin-bottom: 0.6em;
+    color: #f1f5f9;
+    font-size: 1.25em;
+    font-weight: 600;
+  }
+
+  h4, h5, h6 {
+    margin-top: 1em;
+    margin-bottom: 0.5em;
+    color: #f1f5f9;
+    font-weight: 600;
+  }
+
+  h1[id], h2[id], h3[id], h4[id], h5[id], h6[id] {
+    scroll-margin-top: 20px;
+    display: block;
+    position: relative;
+    transition: all 0.2s ease;
+    
+    &:hover {
+      color: #38bdf8 !important;
+    }
+    
+    &.markdown-heading-highlighted {
+      background: rgba(59, 130, 246, 0.15);
+      border-left: 4px solid #3b82f6;
+      padding-left: 12px;
+      margin-left: -12px;
+      border-radius: 4px;
+      animation: highlightPulse 0.5s ease;
+    }
+  }
+  
+  @keyframes highlightPulse {
+    0% {
+      background: rgba(59, 130, 246, 0.3);
+    }
+    100% {
+      background: rgba(59, 130, 246, 0.15);
+    }
+  }
+  
+  // Style for HTML anchor elements (like <a id="I"></a>)
+  a[id] {
+    scroll-margin-top: 20px;
+    display: block;
+    position: relative;
+    top: -20px;
+    visibility: hidden;
+    height: 0;
+    margin: 0;
+    padding: 0;
+    pointer-events: none;
+  }
+  
+  // Ensure headings after anchor tags are scrollable
+  a[id] + h1,
+  a[id] + h2,
+  a[id] + h3,
+  a[id] + h4,
+  a[id] + h5,
+  a[id] + h6 {
+    scroll-margin-top: 20px;
+  }
+
+  p {
+    margin: 1em 0;
+    color: #cbd5e1;
+    line-height: 1.7;
+    // marked.js with breaks: true will convert single \n to <br>, so we don't need white-space: pre-wrap
+    
+    img {
+      display: block;
+      margin: 1.5em auto;
+    }
+  }
+  
+  // Ensure <br> tags are visible and properly spaced
+  br {
+    display: block;
+    margin: 0.5em 0;
+    content: "";
+  }
+  
+  strong {
+    color: #f1f5f9;
+    font-weight: 600;
+  }
+  
+  em {
+    font-style: italic;
+    color: #cbd5e1;
+  }
+  
+  del {
+    text-decoration: line-through;
+    opacity: 0.7;
+  }
+
+  ul, ol {
+    margin: 1em 0;
+    padding-left: 2em;
+    color: #cbd5e1;
+  }
+
+  ul {
+    list-style-type: disc;
+    
+    ul {
+      list-style-type: circle;
+      
+      ul {
+        list-style-type: square;
+      }
+    }
+  }
+
+  ol {
+    list-style-type: decimal;
+  }
+
+  li {
+    margin: 0.5em 0;
+    line-height: 1.6;
+    
+    p {
+      margin: 0.5em 0;
+    }
+    
+    ul, ol {
+      margin-top: 0.5em;
+      margin-bottom: 0.5em;
+    }
+  }
+
+  blockquote {
+    margin: 1em 0;
+    padding: 0.5em 1em;
+    border-left: 4px solid #38bdf8;
+    background: rgba(56, 189, 248, 0.05);
+    color: #94a3b8;
+    border-radius: 4px;
+  }
+
+  pre {
+    background: #1e293b;
+    padding: 16px;
+    border-radius: 6px;
+    overflow-x: auto;
+    margin: 1em 0;
+    border: 1px solid #334155;
+    position: relative;
+    
+    &::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, #38bdf8, #60a5fa);
+    }
+  }
+
+  code {
+    color: #38bdf8;
+    background: rgba(56, 189, 248, 0.1);
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 0.9em;
+    font-family: ui-monospace, "Cascadia Code", "Source Code Pro", Menlo, monospace;
+    word-break: break-word;
+  }
+
+  pre code {
+    color: #e5e7eb;
+    background: transparent;
+    padding: 0;
+    display: block;
+    white-space: pre;
+    overflow-x: auto;
+  }
+  
+  // Highlight.js styles override for better dark theme
+  pre code.hljs {
+    display: block;
+    overflow-x: auto;
+    padding: 0;
+    background: transparent;
+    color: #e5e7eb;
+  }
+  
+  code.hljs {
+    padding: 0;
+    background: transparent;
+  }
+  
+  .hljs {
+    background: #1e293b !important;
+    color: #e5e7eb !important;
+  }
+  
+  .markdown-error {
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    color: #fca5a5;
+    padding: 12px;
+    border-radius: 4px;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1.5em 0;
+    border: 1px solid #334155;
+    border-radius: 6px;
+    overflow: hidden;
+  }
+
+  th, td {
+    border: 1px solid #334155;
+    padding: 12px 16px;
+    text-align: left;
+  }
+
+  th {
+    background: #1e293b;
+    color: #f1f5f9;
+    font-weight: 600;
+    border-bottom: 2px solid #38bdf8;
+  }
+
+  td {
+    color: #cbd5e1;
+  }
+  
+  tr:nth-child(even) {
+    background: rgba(30, 41, 59, 0.3);
+  }
+  
+  tr:hover {
+    background: rgba(56, 189, 248, 0.1);
+  }
+
+  hr {
+    border: none;
+    border-top: 1px solid #334155;
+    margin: 2em 0;
+  }
+
+  a {
+    color: #38bdf8;
+    text-decoration: none;
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+
+  img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 6px;
+    margin: 1.5em 0;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    display: block;
+  }
+
+  .pdf-nav-highlight {
+    background-color: rgba(56, 189, 248, 0.3);
+    padding: 2px 4px;
+    border-radius: 3px;
+    transition: background-color 0.3s;
+  }
+
+  [data-pdf-anchor] {
+    cursor: pointer;
+    transition: all 0.2s;
+
+    &:hover {
+      background-color: rgba(56, 189, 248, 0.15);
+      text-decoration: underline;
+    }
+  }
+}
+
+.validate-result-box {
+  flex-shrink: 0;
+  max-height: 150px;
+  overflow-y: auto;
+  overflow-x: auto;
+  margin-top: 8px;
+}
+
+// Page badge styles for markdown headings
+.markdown-heading-page-badge {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 6px;
+  font-size: 0.75em;
+  background: rgba(59, 130, 246, 0.2);
+  border: 1px solid rgba(59, 130, 246, 0.4);
+  border-radius: 4px;
+  color: #60a5fa;
+  cursor: pointer;
+  vertical-align: middle;
+  transition: all 0.2s ease;
+  
+  &:hover {
+    background: rgba(59, 130, 246, 0.3);
+    border-color: rgba(59, 130, 246, 0.6);
+    transform: scale(1.05);
+  }
+}
+
+// Tooltip styles for markdown headings
+.markdown-heading-tooltip {
+  position: fixed;
+  z-index: 10000;
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  padding: 12px 16px;
+  max-width: 400px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  pointer-events: none;
+  animation: tooltipFadeIn 0.2s ease;
+  
+  .tooltip-title {
+    font-weight: 600;
+    color: #f1f5f9;
+    margin-bottom: 8px;
+    font-size: 14px;
+  }
+  
+  .tooltip-page {
+    color: #60a5fa;
+    font-size: 12px;
+    margin-bottom: 8px;
+  }
+  
+  .tooltip-summary {
+    color: #cbd5e1;
+    font-size: 12px;
+    line-height: 1.5;
+    margin-bottom: 8px;
+  }
+  
+  .tooltip-hint {
+    color: #94a3b8;
+    font-size: 11px;
+    font-style: italic;
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid #334155;
+  }
+}
+
+@keyframes tooltipFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

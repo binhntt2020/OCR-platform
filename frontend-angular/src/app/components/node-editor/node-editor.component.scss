@@ -1,0 +1,149 @@
+.node-editor {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  padding: 8px;
+  margin-bottom: 8px;
+  font-size: 12px;
+}
+
+.node-editor-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 6px;
+
+  h3 {
+    margin: 0;
+    font-size: 13px;
+  }
+
+  .node-id {
+    opacity: 0.7;
+    font-size: 11px;
+  }
+}
+
+.node-editor-form {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+
+  label {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .label {
+    opacity: 0.8;
+  }
+
+  textarea {
+    width: 100%;
+    resize: vertical;
+    min-height: 48px;
+    background-color: rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 3px;
+    color: inherit;
+    padding: 4px 6px;
+    font-family: inherit;
+    font-size: 12px;
+  }
+}
+
+.node-editor-ocr {
+  margin-top: 8px;
+  padding-top: 6px;
+  border-top: 1px dashed rgba(255, 255, 255, 0.1);
+}
+
+.ocr-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 4px;
+  font-size: 11px;
+
+  .label {
+    font-weight: 600;
+  }
+
+  .ocr-info {
+    opacity: 0.7;
+    font-size: 10px;
+  }
+}
+
+.ocr-content {
+  max-height: 200px;
+  overflow: auto;
+  font-size: 11px;
+  line-height: 1.5;
+  padding: 6px;
+  background-color: rgba(0, 0, 0, 0.2);
+  border-radius: 3px;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+.node-editor-actions {
+  margin-top: 6px;
+  display: flex;
+  justify-content: flex-end;
+
+  button {
+    font-size: 11px;
+    padding: 3px 8px;
+  }
+}
+
+.node-editor-sourcemap {
+  margin-top: 8px;
+  padding-top: 4px;
+  border-top: 1px dashed rgba(255, 255, 255, 0.1);
+}
+
+.sourcemap-header {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  margin-bottom: 4px;
+
+  .pages {
+    opacity: 0.8;
+  }
+}
+
+.sourcemap-blocks {
+  max-height: 120px;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.sourcemap-block {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 4px;
+  align-items: baseline;
+  font-size: 11px;
+}
+
+.sourcemap-block .badge {
+  padding: 1px 4px;
+  border-radius: 3px;
+  background-color: rgba(0, 150, 255, 0.35);
+}
+
+.sourcemap-block .text {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sourcemap-block .score {
+  opacity: 0.8;
+}
+

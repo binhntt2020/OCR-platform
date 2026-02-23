@@ -1,0 +1,80 @@
+.home-header {
+  padding: 16px 24px;
+  background: #020617;
+  border-bottom: 1px solid #1e293b;
+
+  h1 {
+    font-size: 20px;
+    margin: 0;
+    font-weight: 600;
+    color: #f1f5f9;
+  }
+}
+
+.home-main {
+  padding: 48px 24px;
+  max-width: 720px;
+  margin: 0 auto;
+  min-height: calc(100vh - 56px);
+  box-sizing: border-box;
+}
+
+.home-title {
+  font-size: 18px;
+  font-weight: 500;
+  color: #94a3b8;
+  margin: 0 0 24px 0;
+}
+
+.home-menu {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 20px;
+}
+
+.menu-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 24px;
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 12px;
+  text-decoration: none;
+  color: #e2e8f0;
+  transition: border-color 0.2s, background 0.2s, transform 0.15s;
+
+  &:hover {
+    border-color: #38bdf8;
+    background: #0f172a;
+    transform: translateY(-2px);
+  }
+
+  .menu-icon {
+    font-size: 32px;
+    margin-bottom: 12px;
+  }
+
+  .menu-label {
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 6px;
+    color: #f1f5f9;
+  }
+
+  .menu-desc {
+    font-size: 13px;
+    color: #94a3b8;
+    line-height: 1.4;
+  }
+}
+
+.menu-chat:hover {
+  border-color: #38bdf8;
+  box-shadow: 0 4px 20px rgba(56, 189, 248, 0.15);
+}
+
+.menu-admin-rag:hover {
+  border-color: #a78bfa;
+  box-shadow: 0 4px 20px rgba(167, 139, 250, 0.15);
+}

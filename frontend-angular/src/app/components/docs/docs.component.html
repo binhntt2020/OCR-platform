@@ -1,0 +1,137 @@
+<div class="column column--pipeline" [class.collapsed]="collapsed">
+  <div class="docs-header">
+    <h2 style="margin: 0; font-size: 14px;">1. Docs</h2>
+    <button 
+      class="toggle-docs-btn"
+      (click)="onToggleCollapse()"
+      [title]="collapsed ? 'Mở rộng Docs' : 'Thu gọn Docs'"
+      type="button"
+      aria-label="Toggle Docs panel">
+      <span>{{ collapsed ? '▶' : '◀' }}</span>
+    </button>
+  </div>
+
+  <section>
+    <label>
+      Upload PDF
+      <input 
+        id="upload-file" 
+        type="file" 
+        accept="application/pdf"
+        (change)="onFileSelected($event)" />
+    </label>
+    <button (click)="uploadDocument()">Upload</button>
+  </section>
+
+  <section>
+    <div style="display:flex;justify-content:space-between;align-items:center;">
+      <span>Documents</span>
+      <button (click)="loadDocs()" style="margin:0;">Reload</button>
+    </div>
+    <ul id="docs-list">
+      <li 
+        *ngFor="let doc of docs"
+        [class.selected]="doc.id === documentService.state.selectedDocId"
+        (click)="selectDoc(doc)">
+        <span class="name">{{ doc.name }}</span>
+        <span class="small">{{ doc.sizeBytes }} bytes</span>
+      </li>
+    </ul>
+    <div class="small" *ngIf="selectedDoc">
+      {{ selectedDoc.name }} · {{ selectedDoc.sizeBytes }} bytes · {{ selectedDoc.uploadedAt }}
+    </div>
+    <button (click)="useInPipeline()">Use in pipeline</button>
+  </section>
+
+  <section class="pipeline-in-docs">
+    <h2 style="margin:0 0 8px;">2. Pipeline</h2>
+    <section>
+      <div class="small">DocId: <code>{{ pipelineDocId }}</code></div>
+    </section>
+
+    <section>
+      <label>
+        LLM Provider
+        <select [(ngModel)]="cfgProvider" (ngModelChange)="onProviderChange($event)">
+          <option value="vllm">vllm</option>
+          <option value="chatgpt">chatgpt</option>
+          <option value="ollama">ollama</option>
+          <option value="gemini">gemini</option>
+        </select>
+      </label>
+      <label>
+        Model
+        <input [(ngModel)]="cfgModel" type="text" />
+      </label>
+      <label>
+        Temperature
+        <input [(ngModel)]="cfgTemp" type="number" step="0.1" />
+      </label>
+      <label>
+        Max tokens
+        <input [(ngModel)]="cfgMaxTokens" type="number" />
+      </label>
+      <label>
+        Chunk size
+        <input [(ngModel)]="cfgChunkSize" type="number" />
+      </label>
+      <label>
+        vLLM Base URL
+        <input [(ngModel)]="cfgVllmBaseUrl" type="text" placeholder="http://10.192.4.50:8000/v1" />
+      </label>
+      <label>
+        vLLM API Key
+        <input [(ngModel)]="cfgVllmApiKey" type="text" placeholder="dev-token" />
+      </label>
+      <label *ngIf="cfgProvider === 'chatgpt'">
+        OpenAI API Key
+        <input [(ngModel)]="cfgOpenaiApiKey" type="password" placeholder="sk-..." />
+      </label>
+    </section>
+
+    <section>
+      <div class="section-title">1. Các bước (Steps)</div>
+      <label *ngFor="let step of steps">
+        <input 
+          type="checkbox" 
+          [(ngModel)]="step.checked"
+          [value]="step.value" /> 
+        {{ step.value }}
+      </label>
+    </section>
+
+    <section>
+      <div class="section-title">2. Chạy pipeline</div>
+      <button 
+        (click)="runPipeline()" 
+        [disabled]="isRunningPipeline">
+        Run pipeline
+      </button>
+      <div class="small" [innerHTML]="pipelineStatus"></div>
+      <pre>{{ pipelineLogs }}</pre>
+    </section>
+
+    <section class="outputs-section">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <span>Outputs</span>
+        <button (click)="loadOutputs()" style="margin:0;">Reload outputs</button>
+      </div>
+      <ul class="outputs-list">
+        <li 
+          *ngFor="let output of outputs"
+          [class.selected]="output.name === documentService.state.selectedOutputName"
+          (click)="selectOutput(output)">
+          <span class="name">{{ output.name }}</span>
+          <span class="output-actions">
+            <button type="button" class="btn-icon" (click)="viewOutput(output); $event.stopPropagation()" title="Xem nội dung">
+              <span class="material-icons">visibility</span>
+            </button>
+            <button type="button" class="btn-icon btn-delete-output" (click)="deleteOutput(output); $event.stopPropagation()" title="Xóa file">
+              <span class="material-icons">delete</span>
+            </button>
+          </span>
+        </li>
+      </ul>
+    </section>
+  </section>
+</div>

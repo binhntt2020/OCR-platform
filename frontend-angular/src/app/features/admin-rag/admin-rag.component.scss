@@ -1,0 +1,102 @@
+.admin-rag-header {
+  padding: 12px 20px;
+  background: #020617;
+  border-bottom: 1px solid #1e293b;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-shrink: 0;
+
+  .header-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .back-link {
+    color: #94a3b8;
+    text-decoration: none;
+    font-size: 18px;
+    padding: 4px 8px;
+    border-radius: 4px;
+    transition: color 0.2s, background 0.2s;
+
+    &:hover {
+      color: #38bdf8;
+      background: #1e293b;
+    }
+  }
+
+  h1 {
+    font-size: 16px;
+    margin: 0;
+  }
+
+  .small {
+    font-size: 11px;
+    opacity: 0.8;
+  }
+}
+
+.main-content {
+  display: grid;
+  grid-template-columns: 1fr 2.5fr 2.5fr;
+  gap: 12px;
+  padding: 12px;
+  height: calc(100vh - 56px);
+  min-height: 0;
+  box-sizing: border-box;
+  align-items: stretch;
+  transition: grid-template-columns 0.3s ease;
+
+  &.docs-collapsed {
+    grid-template-columns: 0fr 1fr 1fr;
+  }
+}
+
+.main-content.docs-collapsed app-docs {
+  overflow: hidden;
+  width: 0 !important;
+  min-width: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border: none !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  transition: opacity 0.3s ease, width 0.3s ease;
+}
+
+.expand-docs-btn {
+  position: fixed;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 10000;
+  font-size: 24px;
+  padding: 16px 8px;
+  border-radius: 0 8px 8px 0;
+  border: 2px solid #38bdf8;
+  border-left: none;
+  background: #0f172a;
+  color: #38bdf8;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  box-shadow: 4px 0 12px rgba(56, 189, 248, 0.3);
+  min-width: 48px;
+  height: 80px;
+
+  &:hover {
+    background: #1e293b;
+    border-color: #60a5fa;
+    color: #60a5fa;
+    transform: translateY(-50%) translateX(4px);
+    box-shadow: 6px 0 16px rgba(56, 189, 248, 0.5);
+  }
+
+  &:active {
+    transform: translateY(-50%) translateX(2px);
+  }
+}

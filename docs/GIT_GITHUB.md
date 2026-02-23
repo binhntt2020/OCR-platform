@@ -68,6 +68,31 @@ git commit -m "Initial commit: OCR platform API, worker, frontend"
 
 ---
 
+## 3.1. Lỗi "Authentication failed" / "ECONNREFUSED vscode-git-*.sock"
+
+- **Nguyên nhân:** Git dùng credential helper của Cursor/VS Code (socket) nhưng không kết nối được, hoặc GitHub không nhận mật khẩu (HTTPS bắt buộc dùng **Personal Access Token**, không dùng password).
+
+- **Cách 1 — Dùng SSH (nên dùng):**
+  1. Tạo SSH key (nếu chưa có): `ssh-keygen -t ed25519 -C "your_email@example.com"` (Enter để mặc định).
+  2. Copy public key: `cat ~/.ssh/id_ed25519.pub` → thêm vào GitHub: **Settings → SSH and GPG keys → New SSH key**.
+  3. Đổi remote sang SSH và push:
+     ```bash
+     git remote set-url origin git@github.com:USERNAME/REPO.git
+     git push -u origin main
+     ```
+
+- **Cách 2 — HTTPS với Personal Access Token:**
+  1. GitHub → **Settings → Developer settings → Personal access tokens → Generate new token (classic)**; chọn scope **repo**.
+  2. Trong terminal (không qua Cursor Git UI), tắt credential helper trỏ socket rồi push, khi hỏi password thì dán **token** (không phải mật khẩu GitHub):
+     ```bash
+     git config --global credential.helper store
+     git push -u origin main
+     # Username: binhntt2020
+     # Password: <dán PAT vừa tạo>
+     ```
+
+---
+
 ## 4. Các lệnh thường dùng sau này
 
 ```bash

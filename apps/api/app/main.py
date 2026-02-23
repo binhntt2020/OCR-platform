@@ -15,6 +15,18 @@ from app.services.storage_service import ensure_bucket
 setup_logging()
 
 
+def _mask_broker_url(url: str) -> str:
+    """Ẩn mật khẩu trong URL khi log."""
+    if not url or "@" not in url:
+        return url.split("/")[0] if url else ""
+    try:
+        before_at = url.split("@", 1)[0]
+        after_at = url.split("@", 1)[1].split("/")[0]
+        return f"...@{after_at}"
+    except Exception:
+        return "..."
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     log = get_logger("app")
@@ -35,6 +47,19 @@ async def lifespan(app: FastAPI):
         raise
     if settings.s3_endpoint:
         ensure_bucket()
+    # Redis (Celery broker): kiểm tra kết nối để đảm bảo gửi task được
+    if settings.celery_broker_url:
+        try:
+            log.info("[REDIS] Đang kiểm tra kết nối Redis (broker)...")
+            from app.core.deps import celery_app
+            with celery_app.connection_or_acquire() as conn:
+                conn.ensure_connection(max_retries=1)
+            log.info("[REDIS] ✅ Kết nối Redis thành công (broker=%s)", _mask_broker_url(settings.celery_broker_url))
+        except Exception as e:
+            log.exception("[REDIS] ❌ Không kết nối được Redis (broker). Gửi task OCR sẽ thất bại: %s", e)
+            # Không raise để API vẫn chạy (upload/minio vẫn dùng được)
+    else:
+        log.warning("[REDIS] CELERY_BROKER_URL chưa cấu hình. Sẽ không gửi được task OCR.")
     yield
     await async_engine.dispose()
 

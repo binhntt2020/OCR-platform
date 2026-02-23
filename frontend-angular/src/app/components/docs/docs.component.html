@@ -1,55 +1,121 @@
-<div class="column column--pipeline" [class.collapsed]="collapsed">
+<div class="column column--docs" [class.collapsed]="collapsed">
   <div class="docs-header">
-    <h2 style="margin: 0; font-size: 14px;">1. Docs</h2>
-    <button 
+    <h2 class="panel-title">1. Job & Tài liệu</h2>
+    <button
       class="toggle-docs-btn"
       (click)="onToggleCollapse()"
-      [title]="collapsed ? 'Mở rộng Docs' : 'Thu gọn Docs'"
+      [title]="collapsed ? 'Mở rộng' : 'Thu gọn'"
       type="button"
-      aria-label="Toggle Docs panel">
+      aria-label="Thu gọn / Mở rộng">
       <span>{{ collapsed ? '▶' : '◀' }}</span>
     </button>
   </div>
 
-  <section>
-    <label>
-      Upload PDF
-      <input 
-        id="upload-file" 
-        type="file" 
-        accept="application/pdf"
-        (change)="onFileSelected($event)" />
-    </label>
-    <button (click)="uploadDocument()">Upload</button>
+  <!-- Upload -->
+  <section class="block upload-block">
+    <h3 class="block-title">Tải file lên (tạo job OCR)</h3>
+    <p class="block-desc">Chọn file PDF hoặc ảnh → Upload. Job được tạo và đưa vào hàng đợi xử lý OCR.</p>
+    <div class="upload-row">
+      <label class="file-label">
+        <input
+          id="upload-file"
+          type="file"
+          accept="application/pdf,image/*"
+          (change)="onFileSelected($event)" />
+        <span class="file-btn">Chọn file</span>
+        <span class="file-name">{{ selectedFile ? selectedFile.name : 'Không có tập nào được chọn' }}</span>
+      </label>
+      <button
+        class="btn btn-primary"
+        (click)="uploadDocument()"
+        [disabled]="!selectedFile || isUploading">
+        {{ isUploading ? 'Đang tải lên...' : 'Upload' }}
+      </button>
+    </div>
+    <div *ngIf="isUploading || uploadLog.length" class="upload-feedback">
+      <div *ngIf="isUploading" class="progress-bar">
+        <div class="progress-fill" [style.width.%]="uploadProgress"></div>
+      </div>
+      <pre class="upload-log" *ngIf="uploadLog.length">{{ uploadLog.join('\n') }}</pre>
+    </div>
   </section>
 
-  <section>
-    <div style="display:flex;justify-content:space-between;align-items:center;">
-      <span>Documents</span>
-      <button (click)="loadDocs()" style="margin:0;">Reload</button>
+  <!-- Danh sách Job (nguồn sự thật) -->
+  <section class="block jobs-block">
+    <div class="block-head">
+      <h3 class="block-title">Danh sách job OCR</h3>
+      <button class="btn btn-secondary" type="button" (click)="loadOcrJobs()" [disabled]="loadingJobs">
+        {{ loadingJobs ? '...' : 'Làm mới' }}
+      </button>
     </div>
-    <ul id="docs-list">
-      <li 
-        *ngFor="let doc of docs"
-        [class.selected]="doc.id === documentService.state.selectedDocId"
-        (click)="selectDoc(doc)">
-        <span class="name">{{ doc.name }}</span>
-        <span class="small">{{ doc.sizeBytes }} bytes</span>
-      </li>
-    </ul>
-    <div class="small" *ngIf="selectedDoc">
-      {{ selectedDoc.name }} · {{ selectedDoc.sizeBytes }} bytes · {{ selectedDoc.uploadedAt }}
+    <p class="block-desc">Chọn job để xem PDF bên cạnh. Dùng "Chạy lại" để đưa job vào hàng đợi xử lý lại.</p>
+    <div *ngIf="loadingJobs" class="state-msg">Đang tải...</div>
+    <div class="jobs-wrap" *ngIf="!loadingJobs && ocrJobs.length">
+      <table class="jobs-table">
+        <thead>
+          <tr>
+            <th>Job</th>
+            <th>File</th>
+            <th>Trạng thái</th>
+            <th>Tiến trình</th>
+            <th>Thao tác</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr
+            *ngFor="let job of ocrJobs"
+            [class.selected]="job.job_id === documentService.state.selectedDocId">
+            <td class="cell-mono" [title]="job.job_id">{{ shortId(job.job_id) }}</td>
+            <td class="cell-file truncate" [title]="job.original_filename || job.job_id">{{ job.original_filename || '—' }}</td>
+            <td>
+              <span
+                class="badge"
+                [class.badge-done]="job.status === 'DONE'"
+                [class.badge-fail]="job.status === 'FAILED'"
+                [class.badge-pending]="job.status === 'QUEUED' || job.status === 'RUNNING'">
+                {{ statusLabel(job.status) }}
+              </span>
+            </td>
+            <td>{{ job.progress != null ? job.progress + '%' : '—' }}</td>
+            <td class="cell-actions">
+              <button type="button" class="btn-sm btn-view" (click)="viewJobPdf(job, $event)" title="Xem PDF">Xem PDF</button>
+              <button type="button" class="btn-sm btn-rerun" (click)="rerunJob(job, $event)" [disabled]="rerunningJobId === job.job_id" title="Chạy lại OCR">Chạy lại</button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
     </div>
-    <button (click)="useInPipeline()">Use in pipeline</button>
+    <div *ngIf="!loadingJobs && !ocrJobs.length" class="state-msg">Chưa có job. Upload file để tạo job.</div>
+    <div *ngIf="selectedDoc" class="selected-summary">
+      <span class="label">Đang chọn:</span> {{ selectedDoc.name }} · {{ selectedDoc.sizeBytes | number }} bytes
+    </div>
   </section>
 
-  <section class="pipeline-in-docs">
-    <h2 style="margin:0 0 8px;">2. Pipeline</h2>
-    <section>
-      <div class="small">DocId: <code>{{ pipelineDocId }}</code></div>
-    </section>
+  <!-- 2. Cấu hình & Workflow OCR -->
+  <section class="block config-block">
+    <h3 class="block-title">2. Cấu hình & Workflow OCR</h3>
+    <div class="config-grid">
+      <div class="config-item">
+        <span class="config-label">Backend API</span>
+        <code class="config-value">{{ apiBaseUrl }}</code>
+      </div>
+      <div class="config-item">
+        <span class="config-label">Tenant</span>
+        <code class="config-value">{{ tenantId }}</code>
+      </div>
+    </div>
+    <div class="workflow-desc">
+      <strong>Luồng xử lý:</strong> Upload → Job vào hàng đợi (Celery) → Worker OCR xử lý → Trạng thái cập nhật (QUEUED → RUNNING → DONE / FAILED). Dùng "Làm mới" ở trên để cập nhật trạng thái.
+    </div>
 
-    <section>
+    <!-- RAG / Pipeline bổ sung (thu gọn) -->
+    <div class="advanced-toggle">
+      <button type="button" class="btn-link" (click)="pipelineAdvancedExpanded = !pipelineAdvancedExpanded">
+        {{ pipelineAdvancedExpanded ? '▼' : '▶' }} Cấu hình RAG / Pipeline bổ sung
+      </button>
+    </div>
+    <div *ngIf="pipelineAdvancedExpanded" class="advanced-panel">
+      <div class="small mb-1">DocId dùng cho pipeline: <code>{{ pipelineDocId || '—' }}</code></div>
       <label>
         LLM Provider
         <select [(ngModel)]="cfgProvider" (ngModelChange)="onProviderChange($event)">
@@ -59,79 +125,38 @@
           <option value="gemini">gemini</option>
         </select>
       </label>
-      <label>
-        Model
-        <input [(ngModel)]="cfgModel" type="text" />
+      <label>Model <input [(ngModel)]="cfgModel" type="text" /></label>
+      <label>Temperature <input [(ngModel)]="cfgTemp" type="number" step="0.1" /></label>
+      <label>Max tokens <input [(ngModel)]="cfgMaxTokens" type="number" /></label>
+      <label>Chunk size <input [(ngModel)]="cfgChunkSize" type="number" /></label>
+      <label>vLLM Base URL <input [(ngModel)]="cfgVllmBaseUrl" type="text" /></label>
+      <label>vLLM API Key <input [(ngModel)]="cfgVllmApiKey" type="text" /></label>
+      <label *ngIf="cfgProvider === 'chatgpt'">OpenAI API Key <input [(ngModel)]="cfgOpenaiApiKey" type="password" /></label>
+      <div class="section-title mt-1">Các bước (Steps)</div>
+      <label *ngFor="let step of steps" class="step-label">
+        <input type="checkbox" [(ngModel)]="step.checked" [value]="step.value" /> {{ step.value }}
       </label>
-      <label>
-        Temperature
-        <input [(ngModel)]="cfgTemp" type="number" step="0.1" />
-      </label>
-      <label>
-        Max tokens
-        <input [(ngModel)]="cfgMaxTokens" type="number" />
-      </label>
-      <label>
-        Chunk size
-        <input [(ngModel)]="cfgChunkSize" type="number" />
-      </label>
-      <label>
-        vLLM Base URL
-        <input [(ngModel)]="cfgVllmBaseUrl" type="text" placeholder="http://10.192.4.50:8000/v1" />
-      </label>
-      <label>
-        vLLM API Key
-        <input [(ngModel)]="cfgVllmApiKey" type="text" placeholder="dev-token" />
-      </label>
-      <label *ngIf="cfgProvider === 'chatgpt'">
-        OpenAI API Key
-        <input [(ngModel)]="cfgOpenaiApiKey" type="password" placeholder="sk-..." />
-      </label>
-    </section>
-
-    <section>
-      <div class="section-title">1. Các bước (Steps)</div>
-      <label *ngFor="let step of steps">
-        <input 
-          type="checkbox" 
-          [(ngModel)]="step.checked"
-          [value]="step.value" /> 
-        {{ step.value }}
-      </label>
-    </section>
-
-    <section>
-      <div class="section-title">2. Chạy pipeline</div>
-      <button 
-        (click)="runPipeline()" 
-        [disabled]="isRunningPipeline">
-        Run pipeline
-      </button>
-      <div class="small" [innerHTML]="pipelineStatus"></div>
-      <pre>{{ pipelineLogs }}</pre>
-    </section>
-
-    <section class="outputs-section">
-      <div style="display:flex;justify-content:space-between;align-items:center;">
+      <div class="mt-1">
+        <button class="btn btn-secondary" (click)="runPipeline()" [disabled]="isRunningPipeline">Run pipeline</button>
+        <span class="small" [innerHTML]="pipelineStatus"></span>
+      </div>
+      <pre class="pipeline-logs" *ngIf="pipelineLogs">{{ pipelineLogs }}</pre>
+      <div class="mt-1 flex">
         <span>Outputs</span>
-        <button (click)="loadOutputs()" style="margin:0;">Reload outputs</button>
+        <button class="btn btn-secondary ml-1" (click)="loadOutputs()">Reload outputs</button>
       </div>
       <ul class="outputs-list">
-        <li 
+        <li
           *ngFor="let output of outputs"
           [class.selected]="output.name === documentService.state.selectedOutputName"
           (click)="selectOutput(output)">
           <span class="name">{{ output.name }}</span>
           <span class="output-actions">
-            <button type="button" class="btn-icon" (click)="viewOutput(output); $event.stopPropagation()" title="Xem nội dung">
-              <span class="material-icons">visibility</span>
-            </button>
-            <button type="button" class="btn-icon btn-delete-output" (click)="deleteOutput(output); $event.stopPropagation()" title="Xóa file">
-              <span class="material-icons">delete</span>
-            </button>
+            <button type="button" class="btn-icon" (click)="viewOutput(output); $event.stopPropagation()" title="Xem">👁</button>
+            <button type="button" class="btn-icon btn-danger" (click)="deleteOutput(output); $event.stopPropagation()" title="Xóa">✕</button>
           </span>
         </li>
       </ul>
-    </section>
+    </div>
   </section>
 </div>

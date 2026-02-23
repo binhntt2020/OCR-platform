@@ -8,14 +8,27 @@ logger = get_logger(__name__)
 
 
 @worker_init.connect
-def _ensure_bucket_on_start(**kwargs):
+def _init_redis_and_bucket(**kwargs):
+    # 1) Redis (broker): kiểm tra kết nối
+    if settings.celery_broker_url:
+        try:
+            logger.info("[REDIS] Đang kiểm tra kết nối Redis (broker)...")
+            with celery_app.connection_or_acquire() as conn:
+                conn.ensure_connection(max_retries=2)
+            logger.info("[REDIS] ✅ Kết nối Redis thành công")
+        except Exception as e:
+            logger.exception("[REDIS] ❌ Không kết nối được Redis (broker): %s", e)
+            raise
+    else:
+        logger.warning("[REDIS] CELERY_BROKER_URL chưa cấu hình")
+    # 2) MinIO/S3 bucket
     try:
-        logger.info("[WORKER] Initializing worker: ensuring S3 bucket...")
+        logger.info("[WORKER] Đang kiểm tra S3 bucket...")
         from app.services.storage_service import ensure_bucket
         ensure_bucket()
-        logger.info("[WORKER] ✅ S3 bucket ready")
+        logger.info("[WORKER] ✅ S3 bucket sẵn sàng")
     except Exception:
-        logger.exception("[WORKER] ❌ Failed to ensure S3 bucket")
+        logger.exception("[WORKER] ❌ Không đảm bảo được S3 bucket")
         raise
 
 

@@ -2,7 +2,13 @@ import { Component, OnInit, OnDestroy, Input, Output, EventEmitter } from '@angu
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { DocumentService } from '../../services/document.service';
-import { RagApiService, Document, Output as OutputFile, PipelineConfig } from '../../services/rag-api.service';
+import {
+  RagApiService,
+  Document,
+  Output as OutputFile,
+  PipelineConfig,
+  OcrJobListItem,
+} from '../../services/rag-api.service';
 import { Subject, takeUntil, firstValueFrom } from 'rxjs';
 
 @Component({
@@ -66,6 +72,24 @@ export class DocsComponent implements OnInit, OnDestroy {
   private destroy$ = new Subject<void>();
   selectedFile: File | null = null;
 
+  // Upload progress & log
+  uploadLog: string[] = [];
+  uploadProgress = 0;
+  isUploading = false;
+
+  // OCR Jobs (danh sách từ API)
+  ocrJobs: OcrJobListItem[] = [];
+  loadingJobs = false;
+  rerunningJobId: string | null = null;
+  readonly DEFAULT_TENANT = 'demo';
+
+  /** Cấu hình hiển thị (khớp backend OCR) */
+  apiBaseUrl = 'http://localhost:8000';
+  tenantId = this.DEFAULT_TENANT;
+
+  /** Panel RAG/Pipeline bổ sung: mặc định thu gọn */
+  pipelineAdvancedExpanded = false;
+
   constructor(
     public documentService: DocumentService,
     private ragApi: RagApiService
@@ -88,6 +112,7 @@ export class DocsComponent implements OnInit, OnDestroy {
     
     // Load docs on init
     this.loadDocs();
+    this.loadOcrJobs();
   }
 
   ngOnDestroy(): void {
@@ -112,21 +137,107 @@ export class DocsComponent implements OnInit, OnDestroy {
       return;
     }
 
-    try {
-      const doc = await firstValueFrom(this.ragApi.uploadDocument(this.selectedFile));
-      const currentDocs = this.documentService.state.docs;
+    this.isUploading = true;
+    this.uploadProgress = 0;
+    this.uploadLog = ['Đang tạo job...'];
+
+    this.ragApi.createOcrJob(this.DEFAULT_TENANT).subscribe({
+      next: async (createRes) => {
+        this.uploadLog = ['Job đã tạo: ' + createRes.job_id, 'Đang tải file lên...'];
+        this.ragApi.uploadToOcrJobWithProgress(createRes.job_id, this.selectedFile!, this.DEFAULT_TENANT).subscribe({
+          next: (ev) => {
+            if (ev.progress != null) {
+              this.uploadProgress = ev.progress;
+            }
+            if (ev.response) {
+              this.uploadProgress = 100;
+              this.uploadLog = [...this.uploadLog, 'Upload thành công. Worker đã nhận: ' + (ev.response.worker_queued ? 'Có' : 'Không')];
+              const doc: Document = {
+                id: ev.response.job_id,
+                name: this.selectedFile!.name,
+                sizeBytes: ev.response.size_bytes ?? this.selectedFile!.size,
+                uploadedAt: new Date().toISOString(),
+              };
+              const currentDocs = this.documentService.state.docs;
+              this.documentService.setDocs([...currentDocs, doc]);
+              this.documentService.setSelectedDocId(doc.id);
+              this.selectedFile = null;
+              const fileInput = document.getElementById('upload-file') as HTMLInputElement;
+              if (fileInput) fileInput.value = '';
+              this.loadOcrJobs();
+              this.isUploading = false;
+            }
+            if (ev.error) {
+              this.uploadLog = [...this.uploadLog, 'Lỗi: ' + ev.error];
+              this.isUploading = false;
+            }
+          },
+          error: (err) => {
+            this.uploadLog = [...this.uploadLog, 'Lỗi: ' + (err?.message || err)];
+            this.isUploading = false;
+          },
+        });
+      },
+      error: (e: any) => {
+        this.uploadLog = [...this.uploadLog, 'Lỗi tạo job: ' + (e?.message || e)];
+        this.isUploading = false;
+      },
+    });
+  }
+
+  loadOcrJobs(): void {
+    this.loadingJobs = true;
+    this.ragApi.listOcrJobs(this.DEFAULT_TENANT).subscribe({
+      next: (res) => {
+        this.ocrJobs = res.jobs || [];
+        this.loadingJobs = false;
+      },
+      error: () => {
+        this.loadingJobs = false;
+      },
+    });
+  }
+
+  rerunJob(job: OcrJobListItem, e: Event): void {
+    e.stopPropagation();
+    if (this.rerunningJobId) return;
+    this.rerunningJobId = job.job_id;
+    this.ragApi.rerunOcrJob(job.job_id, this.DEFAULT_TENANT).subscribe({
+      next: () => {
+        this.rerunningJobId = null;
+        this.loadOcrJobs();
+      },
+      error: () => {
+        this.rerunningJobId = null;
+      },
+    });
+  }
+
+  viewJobPdf(job: OcrJobListItem, e: Event): void {
+    e.stopPropagation();
+    this.documentService.setSelectedDocId(job.job_id);
+    const doc: Document = {
+      id: job.job_id,
+      name: job.original_filename || job.job_id,
+      sizeBytes: job.size_bytes ?? 0,
+      uploadedAt: job.updated_at || job.created_at || '',
+    };
+    const currentDocs = this.documentService.state.docs;
+    if (!currentDocs.find(d => d.id === job.job_id)) {
       this.documentService.setDocs([...currentDocs, doc]);
-      this.documentService.setSelectedDocId(doc.id);
-      this.selectedFile = null;
-      
-      // Reset file input
-      const fileInput = document.getElementById('upload-file') as HTMLInputElement;
-      if (fileInput) {
-        fileInput.value = '';
-      }
-    } catch (e: any) {
-      alert('Upload thất bại: ' + e.message);
     }
+  }
+
+  shortId(id: string): string {
+    return id.length > 12 ? id.slice(0, 8) + '…' : id;
+  }
+
+  statusLabel(status: string): string {
+    const s = (status || '').toUpperCase();
+    if (s === 'QUEUED' || s === 'RUNNING') return s;
+    if (s === 'DONE') return 'DONE';
+    if (s === 'FAILED') return 'FAILED';
+    return status || '—';
   }
 
   async loadDocs(): Promise<void> {

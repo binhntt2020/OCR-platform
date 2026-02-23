@@ -109,6 +109,32 @@ async def upload_file(
     }
 
 
+@router.post("/jobs/{job_id}/rerun")
+async def rerun_job(
+    job_id: str,
+    x_tenant_id: str = Header(default="default"),
+    session: AsyncSession = Depends(get_session),
+):
+    """Gửi lại job vào hàng đợi Celery (chạy lại OCR)."""
+    job = await get_job(session, job_id)
+    if not job:
+        raise HTTPException(404, "job not found")
+    if job["tenant_id"] != x_tenant_id:
+        raise HTTPException(403, "tenant mismatch")
+    if not job.get("input_object_key"):
+        raise HTTPException(400, "Job chưa có file upload, không thể chạy lại.")
+    worker_queued = False
+    try:
+        from app.core.deps import celery_app
+        celery_app.send_task("ocr.run_job", args=[job_id])
+        worker_queued = True
+        await update_job(session, job_id, status="QUEUED", error=None)
+        logger.info("[OCR] Rerun job: job_id=%s", job_id)
+    except Exception as e:
+        logger.warning("Redis/Celery lỗi, không gửi được task: %s", e)
+    return {"job_id": job_id, "status": "QUEUED", "worker_queued": worker_queued}
+
+
 @router.get("/jobs/{job_id}", response_model=JobStatusResponse)
 async def job_status(
     job_id: str,

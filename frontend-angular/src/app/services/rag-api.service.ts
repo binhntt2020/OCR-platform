@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpEventType } from '@angular/common/http';
 import { Observable, of } from 'rxjs';
-import { catchError } from 'rxjs/operators';
+import { catchError, filter, map } from 'rxjs/operators';
 
 export interface Document {
   id: string;
@@ -58,6 +58,39 @@ export interface UploadJobResponse {
   job_id: string;
   status: string;
   input_object_key: string;
+  original_filename?: string;
+  content_type?: string;
+  size_bytes?: number;
+  checksum?: string;
+  page_count?: number;
+  worker_queued?: boolean;
+}
+
+export interface OcrJobStatus {
+  job_id: string;
+  status: string;
+  input_object_key?: string | null;
+  result_object_key?: string | null;
+  original_filename?: string | null;
+  content_type?: string | null;
+  size_bytes?: number | null;
+  checksum?: string | null;
+  page_count?: number | null;
+  processed_pages?: number | null;
+  progress?: number | null;
+  error?: string | null;
+}
+
+export interface OcrJobListItem extends OcrJobStatus {
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface UploadProgressEvent {
+  phase: 'creating' | 'uploading' | 'done' | 'error';
+  message: string;
+  percent?: number;
+  error?: string;
 }
 
 @Injectable({
@@ -82,6 +115,64 @@ export class RagApiService {
     return this.http.post<UploadJobResponse>(
       `${this.API_BASE}${OCR_PREFIX}/jobs/${jobId}/upload`,
       formData,
+      { headers: { 'X-Tenant-Id': xTenantId } }
+    );
+  }
+
+  /** Upload với báo cáo tiến trình (progress). Emit progress 0..100 rồi response hoặc error. */
+  uploadToOcrJobWithProgress(
+    jobId: string,
+    file: File,
+    xTenantId: string = DEFAULT_TENANT
+  ): Observable<{ progress?: number; response?: UploadJobResponse; error?: string }> {
+    const formData = new FormData();
+    formData.append('file', file, file.name);
+    type Emit = { progress: number } | { response: UploadJobResponse } | { error: string };
+    return this.http.post<UploadJobResponse>(
+      `${this.API_BASE}${OCR_PREFIX}/jobs/${jobId}/upload`,
+      formData,
+      {
+        headers: { 'X-Tenant-Id': xTenantId },
+        reportProgress: true,
+        observe: 'events'
+      }
+    ).pipe(
+      map((event): Emit | null => {
+        if (event.type === HttpEventType.UploadProgress && event.loaded != null && event.total != null && event.total > 0) {
+          return { progress: Math.round((100 * event.loaded) / event.total) };
+        }
+        if (event.type === HttpEventType.Response && event.body) {
+          return { response: event.body as UploadJobResponse };
+        }
+        return null;
+      }),
+      filter((v): v is Emit => v != null),
+      catchError(err => {
+        const msg = err?.error?.detail || err?.message || 'Upload failed';
+        return of<{ error: string }>({ error: typeof msg === 'string' ? msg : JSON.stringify(msg) });
+      })
+    );
+  }
+
+  listOcrJobs(xTenantId: string | null = DEFAULT_TENANT, limit = 50): Observable<{ jobs: OcrJobListItem[]; count: number }> {
+    const headers: Record<string, string> = {};
+    if (xTenantId) headers['X-Tenant-Id'] = xTenantId;
+    return this.http.get<{ jobs: OcrJobListItem[]; count: number }>(
+      `${this.API_BASE}${OCR_PREFIX}/jobs`,
+      { params: { limit }, headers }
+    );
+  }
+
+  getOcrJobStatus(jobId: string, xTenantId: string = DEFAULT_TENANT): Observable<OcrJobStatus> {
+    return this.http.get<OcrJobStatus>(`${this.API_BASE}${OCR_PREFIX}/jobs/${jobId}`, {
+      headers: { 'X-Tenant-Id': xTenantId }
+    });
+  }
+
+  rerunOcrJob(jobId: string, xTenantId: string = DEFAULT_TENANT): Observable<{ job_id: string; status: string; worker_queued: boolean }> {
+    return this.http.post<{ job_id: string; status: string; worker_queued: boolean }>(
+      `${this.API_BASE}${OCR_PREFIX}/jobs/${jobId}/rerun`,
+      {},
       { headers: { 'X-Tenant-Id': xTenantId } }
     );
   }

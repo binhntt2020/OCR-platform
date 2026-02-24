@@ -1035,6 +1035,13 @@ h2 {
   box-sizing: border-box;
 }
 
+.pdf-detect-bbox-wrapper--highlight {
+  box-shadow: 0 0 0 3px #22c55e;
+  background: rgba(34, 197, 94, 0.2);
+  z-index: 103;
+  border-color: #22c55e !important;
+}
+
 /* Góc dưới phải: kéo để đổi kích thước (chỉnh sửa) */
 .pdf-detect-resize-handle {
   position: absolute;

@@ -1,7 +1,10 @@
 """
 Pipeline OCR: Preprocess → CRAFT (detect) → VietOCR (recognize) → Postprocess.
-orchestrator gọi detect_text_boxes (CRAFT) và recognize (VietOCR); không phụ thuộc trực tiếp vào từng engine.
-Có thể chạy OCR với boxes có sẵn (run_ocr_with_boxes) khi đã lưu/chỉnh sửa kết quả Detect trong DB.
+
+- run_ocr: full pipeline (detect + recognize); không lưu detect vào DB.
+- run_ocr_with_boxes: dùng boxes có sẵn (từ CSDL sau bước Detect, có thể đã chỉnh sửa).
+  Bỏ qua Detect, chỉ Preprocess → Recognize (VietOCR) → Postprocess.
+  Worker gọi hàm này khi chạy run_ocr_job: đọc detect_result từ DB rồi OCR theo từng vùng bằng VietOCR.
 """
 from __future__ import annotations
 from PIL import Image
@@ -22,6 +25,11 @@ def _boxes_from_detect_page(page_data: dict) -> list[tuple[int, int, int, int]]:
     """Chuyển detect page (boxes [{x1,y1,x2,y2}]) thành list (x1,y1,x2,y2)."""
     boxes = page_data.get("boxes") or []
     return [(b["x1"], b["y1"], b["x2"], b["y2"]) for b in boxes]
+
+
+def _box_from_detect_box(b: dict) -> tuple[int, int, int, int]:
+    """Lấy (x1,y1,x2,y2) từ một phần tử boxes trong detect_result (DB)."""
+    return (int(b["x1"]), int(b["y1"]), int(b["x2"]), int(b["y2"]))
 
 
 def run_ocr(job_id: str, pages: list[Image.Image]) -> OcrResult:
@@ -111,7 +119,10 @@ def run_ocr_with_boxes(
     pages: list[Image.Image],
     detect_pages: list[dict],
 ) -> OcrResult:
-    """Chạy OCR dùng boxes có sẵn (từ DB, đã chỉnh sửa). Bỏ qua bước Detect."""
+    """Chạy OCR theo vùng đã detect lưu trong CSDL: boxes lấy từ cột detect_result (DB).
+    Tọa độ trong blocks.box luôn lấy nguyên từ detect_result để khớp với PDF.
+    Nếu ảnh bị preprocess (resize) thì chỉ scale box khi crop cho VietOCR, không đổi giá trị lưu.
+    """
     logger.info(
         "[OCR Pipeline] Bắt đầu với boxes có sẵn: job_id=%s, số_trang=%s",
         job_id, len(pages),
@@ -120,24 +131,43 @@ def run_ocr_with_boxes(
     ocr_pages = []
     for page_index, img in enumerate(pages):
         page_data = by_index.get(page_index, {})
-        boxes = _boxes_from_detect_page(page_data)
-        img = preprocess_image(img)
-        w, h = img.size
-        rec = recognize(img, boxes)
+        raw_boxes = page_data.get("boxes") or []
+        if not raw_boxes:
+            w_orig = page_data.get("width") or img.size[0]
+            h_orig = page_data.get("height") or img.size[1]
+            ocr_pages.append(OcrPage(page_index=page_index, width=w_orig, height=h_orig, blocks=[]))
+            continue
+        # Box gốc từ DB (detect_result) — dùng để lưu vào block (khớp PDF)
+        boxes_orig = [_box_from_detect_box(b) for b in raw_boxes]
+        img_prep = preprocess_image(img)
+        w_prep, h_prep = img_prep.size
+        w_orig = page_data.get("width") or img.size[0]
+        h_orig = page_data.get("height") or img.size[1]
+        scale_x = w_prep / w_orig if w_orig else 1.0
+        scale_y = h_prep / h_orig if h_orig else 1.0
+        boxes_for_crop = []
+        for (x1, y1, x2, y2) in boxes_orig:
+            x1_s = int(x1 * scale_x)
+            y1_s = int(y1 * scale_y)
+            x2_s = int(x2 * scale_x)
+            y2_s = int(y2 * scale_y)
+            boxes_for_crop.append((x1_s, y1_s, x2_s, y2_s))
+        rec = recognize(img_prep, boxes_for_crop)
         texts = postprocess_texts([t for t, _ in rec])
-        n = min(len(boxes), len(rec), len(texts))
+        n = min(len(boxes_orig), len(rec), len(texts))
         blocks = []
         for i in range(n):
             raw_text, conf = rec[i]
             text = texts[i]
+            box_for_output = boxes_orig[i]
             blocks.append(
                 OcrBlock(
                     block_id=f"{page_index}-{i}-{uuid.uuid4().hex[:8]}",
-                    box=boxes[i],
+                    box=box_for_output,
                     score=1.0,
                     text=text,
                     conf=conf,
                 )
             )
-        ocr_pages.append(OcrPage(page_index=page_index, width=w, height=h, blocks=blocks))
+        ocr_pages.append(OcrPage(page_index=page_index, width=w_orig, height=h_orig, blocks=blocks))
     return OcrResult(job_id=job_id, pages=ocr_pages)

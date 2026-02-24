@@ -173,9 +173,15 @@ export class PdfViewerComponent implements OnInit, AfterViewInit, OnDestroy {
         }
       }
       
-      // Re-render khi có kết quả Detect (poll sau upload)
+      // Re-render khi có kết quả Detect (poll sau upload) hoặc khi đổi block OCR được chọn (highlight)
       if (state.selectedDocId && state.detectResult[state.selectedDocId] && this.showPdf && this.pdfDoc) {
         setTimeout(() => this.renderPdfAnnotations(), 200);
+      }
+      if (state.selectedOcrBlock != null && this.showPdf && this.pdfDoc) {
+        setTimeout(() => {
+          this.renderPdfAnnotations();
+          this.scrollToPage(state.selectedOcrBlock!.pageIndex + 1);
+        }, 50);
       }
       // Đồng bộ bản copy chỉnh sửa Detect chỉ khi đổi doc hoặc mới có detect (không ghi đè khi user đang chỉnh)
       if (!state.selectedDocId || !state.detectResult[state.selectedDocId]) {
@@ -480,19 +486,20 @@ export class PdfViewerComponent implements OnInit, AfterViewInit, OnDestroy {
     };
   }
 
-  /** Vẽ các vùng Detect (CRAFT) lên overlay — có thể kéo, đổi kích thước, xóa. */
+  /** Vẽ các vùng Detect (CRAFT) lên overlay. Khi có selectedOcrBlock thì chỉ vẽ đúng 1 vùng được chọn (ẩn hết vùng khác). */
   private renderDetectBoxes(overlay: HTMLElement, detectData: { job_id: string; pages: Array<{ page_index: number; width: number; height: number; boxes: Array<{ x1: number; y1: number; x2: number; y2: number }> }> }): void {
     const scale = PdfViewerComponent.IMAGE_TO_PDF_SCALE;
     const scaleX = this.pdfScale;
     const scaleY = this.pdfScale;
     const pageHeightPx = this.pdfPageHeight * this.pdfScale;
     const data = this.editableDetectResult ?? detectData;
+    const sel = this.documentService.state.selectedOcrBlock;
 
-    data.pages.forEach((pageData) => {
+    const drawOneBox = (pageData: { page_index: number; boxes: Array<{ x1: number; y1: number; x2: number; y2: number }> }, box: { x1: number; y1: number; x2: number; y2: number }, idx: number, pageIndex: number, isOnlyOne: boolean) => {
       const page = pageData.page_index + 1;
       const pageOffsetY = this.getPageOffsetY(page, pageHeightPx);
+      const isHighlight = isOnlyOne || (sel?.pageIndex === pageIndex && sel?.blockIndex === idx);
 
-      (pageData.boxes || []).forEach((box, idx) => {
         const x1Pdf = box.x1 * scale;
         const y1Pdf = box.y1 * scale;
         const x2Pdf = box.x2 * scale;
@@ -504,7 +511,7 @@ export class PdfViewerComponent implements OnInit, AfterViewInit, OnDestroy {
         const h = Math.max(4, (y2Pdf - y1Pdf) * scaleY);
 
         const wrapper = document.createElement('div');
-        wrapper.className = 'pdf-detect-bbox-wrapper';
+        wrapper.className = 'pdf-detect-bbox-wrapper' + (isHighlight ? ' pdf-detect-bbox-wrapper--highlight' : '');
         wrapper.style.position = 'absolute';
         wrapper.style.left = `${left}px`;
         wrapper.style.top = `${top}px`;
@@ -513,14 +520,12 @@ export class PdfViewerComponent implements OnInit, AfterViewInit, OnDestroy {
         wrapper.style.pointerEvents = 'auto';
 
         const rect = document.createElement('div');
-        rect.className = 'pdf-detect-bbox';
+        rect.className = isHighlight ? 'pdf-detect-bbox pdf-detect-bbox--highlight' : 'pdf-detect-bbox';
         rect.style.position = 'absolute';
         rect.style.inset = '0';
         rect.style.boxSizing = 'border-box';
         rect.style.pointerEvents = 'auto';
         rect.style.cursor = 'move';
-
-        const pageIndex = pageData.page_index;
         rect.addEventListener('mousedown', (e: MouseEvent) => {
           e.preventDefault();
           e.stopPropagation();
@@ -553,6 +558,21 @@ export class PdfViewerComponent implements OnInit, AfterViewInit, OnDestroy {
         wrapper.appendChild(resizeHandle);
         wrapper.appendChild(deleteBtn);
         overlay.appendChild(wrapper);
+    };
+
+    if (sel != null) {
+      const pageData = data.pages?.[sel.pageIndex];
+      const box = pageData?.boxes?.[sel.blockIndex];
+      if (pageData && box) {
+        drawOneBox(pageData, box, sel.blockIndex, sel.pageIndex, true);
+      }
+      return;
+    }
+
+    data.pages.forEach((pageData) => {
+      const pageIndex = pageData.page_index;
+      (pageData.boxes || []).forEach((box, idx) => {
+        drawOneBox(pageData, box, idx, pageIndex, false);
       });
     });
   }

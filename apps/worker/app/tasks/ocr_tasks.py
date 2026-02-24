@@ -1,3 +1,18 @@
+"""
+OCR tasks: hai bước tách rời.
+
+1) run_job (Detect):
+   - Chạy CRAFT detect_text_boxes theo từng trang.
+   - Lưu kết quả vào CSDL (detect_result) và MinIO (detect.json).
+   - Cập nhật status = DETECT_DONE. Frontend có thể chỉnh sửa boxes rồi PATCH detect_result.
+
+2) run_ocr_job (Recognize theo vùng đã lưu):
+   - Đọc detect_result từ CSDL (vùng đã detect, có thể đã chỉnh sửa).
+   - Gọi run_ocr_with_boxes → preprocess ảnh, recognize bằng VietOCR, postprocess.
+   - Lưu kết quả OCR lên MinIO và cập nhật job DONE.
+
+Luồng: Detect → lưu CSDL → (chỉnh sửa boxes qua API, lưu lại CSDL) → run_ocr_job đọc CSDL → VietOCR theo từng vùng.
+"""
 from __future__ import annotations
 import io
 import json
@@ -121,7 +136,7 @@ def run_job(job_id: str):
     retry_kwargs={"max_retries": 2},
 )
 def run_ocr_job(job_id: str):
-    """Chạy bước OCR (recognize) dùng detect_result đã lưu trong DB (có thể đã chỉnh sửa)."""
+    """Chạy OCR (recognize) theo vùng đã detect lưu trong CSDL: đọc detect_result từ DB, recognize bằng VietOCR (run_ocr_with_boxes), lưu result."""
     logger.info("[OCR] Run OCR job: job_id=%s", job_id)
     job = get_job(job_id)
     if not job:
@@ -159,16 +174,18 @@ def run_ocr_job(job_id: str):
             return
         page_count = len(pages)
         t0 = time.perf_counter()
+        # VietOCR: recognize từng vùng (boxes từ detect_result trong CSDL)
         result = run_ocr_with_boxes(job_id, pages, detect_pages)
         elapsed = time.perf_counter() - t0
         total_blocks = sum(len(p.blocks) for p in result.pages)
         result_key = f"results/{job['tenant_id']}/{job_id}/result.json"
-        result_json = result.model_dump_json(indent=2).encode("utf-8")
-        put_bytes(result_key, result_json, "application/json")
+        result_json_str = result.model_dump_json(indent=2)
+        put_bytes(result_key, result_json_str.encode("utf-8"), "application/json")
         update_job(
             job_id,
             status="DONE",
             result_object_key=result_key,
+            result=result_json_str,
             error=None,
             processed_pages=page_count,
             progress=100,

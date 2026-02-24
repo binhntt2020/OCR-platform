@@ -193,6 +193,7 @@ async def job_status(
         progress=job.get("progress"),
         error=job.get("error"),
         detect_result=job.get("detect_result"),
+        result=job.get("result"),
     )
 
 
@@ -239,6 +240,28 @@ async def update_job_detect(
     await update_job(session, job_id, detect_result=detect_str)
     await session.commit()
     return {"job_id": job_id, "updated": True}
+
+
+@router.patch("/jobs/{job_id}/result")
+async def update_job_result(
+    job_id: str,
+    body: dict,
+    x_tenant_id: str = Header(default="default"),
+    session: AsyncSession = Depends(get_session),
+):
+    """Cập nhật kết quả OCR (JSON) trong DB. Body: { "result": "<json string>" }."""
+    job = await get_job(session, job_id)
+    if not job:
+        raise HTTPException(404, "job not found")
+    if job["tenant_id"] != x_tenant_id:
+        raise HTTPException(403, "tenant mismatch")
+    result = body.get("result")
+    if result is not None and not isinstance(result, str):
+        raise HTTPException(400, "result phải là chuỗi JSON")
+    await update_job(session, job_id, result=result)
+    await session.commit()
+    return {"job_id": job_id, "updated": True}
+
 
 @router.post("/jobs/{job_id}/run-ocr")
 async def trigger_run_ocr(

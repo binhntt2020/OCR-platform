@@ -8,6 +8,23 @@ import { SourceMap } from '../../models/source-map.model';
 import { StructureTreeComponent } from '../structure-tree/structure-tree.component';
 import { DocumentService } from '../../services/document.service';
 import { RagApiService } from '../../services/rag-api.service';
+
+/** Một trang trong kết quả OCR — dùng cho tree tab JSON */
+export interface OcrPageNode {
+  page_index: number;
+  width?: number;
+  height?: number;
+  blocks: OcrBlockNode[];
+}
+
+/** Một vùng OCR (block) — bấm vào sẽ highlight box trên PDF */
+export interface OcrBlockNode {
+  block_id: string;
+  box: number[];
+  text: string;
+  conf: number;
+  blockIndex: number;
+}
 import { Subject, takeUntil, firstValueFrom } from 'rxjs';
 import hljs from 'highlight.js';
 import { marked } from 'marked';
@@ -47,9 +64,19 @@ export class JsonEditorComponent implements OnInit, AfterViewInit, OnDestroy {
   editorFilename = '';
   editorStatus = '';
   validateResult = '';
+  /** true khi nội dung JSON tab là kết quả OCR đọc từ DB (job.result), Save sẽ gọi PATCH /jobs/{id}/result */
+  isOcrResultMode = false;
+  /** Cây kết quả OCR (Page → Block → Text) để hiển thị tree và bấm highlight PDF */
+  ocrResultTree: OcrPageNode[] | null = null;
+  /** Bản gốc parsed (job.result) để sửa/xóa block rồi sync ra editorText khi Save */
+  ocrResultRaw: any = null;
+  /** Block đang chọn trong tree (pageIndex-blockIndex) để tô active */
+  selectedOcrBlockId: string | null = null;
   jsonStructure: any = null; // Store JSON structure for TOC mapping
   jsonlData: Array<{ id: string; text: string; metadata: any }> = []; // Store JSONL data for anchor mapping
-  
+
+  /** Khớp với tenant khi tạo job (rag-api: 'demo') — tránh 403 tenant mismatch */
+  private readonly DEFAULT_TENANT = 'demo';
   private destroy$ = new Subject<void>();
   private tocScrollListener?: () => void;
 
@@ -108,20 +135,133 @@ export class JsonEditorComponent implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
+  ocrResultPlaceholder(): string {
+    if (!this.editorDocId) return 'Chọn document (job) trong danh sách, sau đó bấm Load để đọc kết quả OCR từ DB.';
+    return 'Bấm Load để đọc kết quả OCR từ DB (hoặc chọn file Output và Load cho RAG).';
+  }
+
+  /** Parse JSON kết quả OCR thành cây Page → Block (sắp xếp theo tọa độ y, x). */
+  buildOcrResultTree(jsonStr: string): OcrPageNode[] | null {
+    try {
+      const raw = JSON.parse(jsonStr);
+      const pages = raw?.pages;
+      if (!Array.isArray(pages)) return null;
+      return pages.map((p: any) => {
+        const blocks: OcrBlockNode[] = (p.blocks || []).map((b: any, idx: number) => ({
+          block_id: b.block_id ?? `block-${idx}`,
+          box: Array.isArray(b.box) ? b.box : [0, 0, 0, 0],
+          text: typeof b.text === 'string' ? b.text : '',
+          conf: typeof b.conf === 'number' ? b.conf : 0,
+          blockIndex: idx,
+        }));
+        blocks.sort((a, b) => {
+          const y1 = a.box[1] ?? 0, y2 = b.box[1] ?? 0;
+          if (y1 !== y2) return y1 - y2;
+          return (a.box[0] ?? 0) - (b.box[0] ?? 0);
+        });
+        return {
+          page_index: p.page_index ?? 0,
+          width: p.width,
+          height: p.height,
+          blocks,
+        };
+      });
+    } catch {
+      return null;
+    }
+  }
+
+  /** Bấm vào block trong tree → highlight box trên PDF và scroll tới trang (chỉ hiện 1 vùng). */
+  selectOcrBlock(pageIndex: number, blockIndex: number): void {
+    this.documentService.setSelectedOcrBlock({ pageIndex, blockIndex });
+    this.selectedOcrBlockId = `${pageIndex}-${blockIndex}`;
+  }
+
+  /** Cập nhật editorText từ ocrResultRaw (gọi sau khi sửa/xóa trong tree). */
+  private syncOcrResultToEditor(): void {
+    if (this.ocrResultRaw == null) return;
+    this.editorText = JSON.stringify(this.ocrResultRaw, null, 2);
+  }
+
+  /** Sửa text của block trong tree và sync ra editorText. */
+  updateOcrBlockText(pageIndex: number, blockIndex: number, newText: string): void {
+    const raw = this.ocrResultRaw;
+    if (!raw?.pages?.[pageIndex]?.blocks?.[blockIndex]) return;
+    raw.pages[pageIndex].blocks[blockIndex].text = newText;
+    const node = this.ocrResultTree?.[pageIndex]?.blocks?.find(b => b.blockIndex === blockIndex);
+    if (node) node.text = newText;
+    this.syncOcrResultToEditor();
+  }
+
+  /** Xóa block trong tree và sync ra editorText + DB (cần bấm Save để ghi DB). */
+  deleteOcrBlock(pageIndex: number, blockIndex: number): void {
+    const raw = this.ocrResultRaw;
+    if (!raw?.pages?.[pageIndex]?.blocks) return;
+    raw.pages[pageIndex].blocks.splice(blockIndex, 1);
+    this.ocrResultTree = this.buildOcrResultTree(JSON.stringify(raw));
+    this.syncOcrResultToEditor();
+    if (this.selectedOcrBlockId === `${pageIndex}-${blockIndex}`) {
+      this.documentService.setSelectedOcrBlock(null);
+      this.selectedOcrBlockId = null;
+    }
+  }
+
   async loadEditor(): Promise<void> {
     const state = this.documentService.state;
-    if (!state.selectedDocId || !state.selectedOutputName) {
-      return; // Don't show alert on auto-load
+    if (!state.selectedDocId) {
+      this.editorStatus = 'Chọn document (job) trước.';
+      return;
     }
 
     this.editorStatus = 'Loading...';
+    this.isOcrResultMode = false;
+
     try {
-      // Use getOutputContent instead of loadEditor to get raw content
+      // Ưu tiên: đọc kết quả OCR từ DB (job.result) khi đang xem job
+      const jobRes = await firstValueFrom(
+        this.ragApi.getOcrJobStatus(state.selectedDocId, this.DEFAULT_TENANT)
+      ).catch(() => null);
+
+      if (jobRes?.result != null && jobRes.result !== '') {
+        let formatted = jobRes.result;
+        try {
+          const parsed = JSON.parse(formatted);
+          formatted = JSON.stringify(parsed, null, 2);
+        } catch {
+          // Giữ nguyên nếu không parse được
+        }
+        this.editorText = formatted;
+        this.isOcrResultMode = true;
+        try {
+          this.ocrResultRaw = JSON.parse(formatted);
+        } catch {
+          this.ocrResultRaw = null;
+        }
+        this.ocrResultTree = this.buildOcrResultTree(formatted);
+        this.editorStatus = 'Loaded (kết quả OCR từ DB)';
+        this.documentService.setJsonStructure(null);
+        this.jsonStructure = null;
+        this.structureNodes = [];
+        this.documentService.setSelectedOcrBlock(null);
+        this.selectedOcrBlockId = null;
+        return;
+      }
+
+      this.ocrResultTree = null;
+      this.ocrResultRaw = null;
+      this.selectedOcrBlockId = null;
+      this.documentService.setSelectedOcrBlock(null);
+
+      // Fallback: RAG output (cần chọn file)
+      if (!state.selectedOutputName) {
+        this.editorStatus = jobRes ? 'Job chưa có kết quả OCR. Chạy Run OCR hoặc chọn file Output và Load.' : 'Chọn file Output hoặc chờ job có result.';
+        return;
+      }
+
       const text = await firstValueFrom(
         this.ragApi.getOutputContent(state.selectedDocId, state.selectedOutputName)
       );
-      
-      // Handle JSON files that might be double-escaped
+
       let finalText = text;
       if (state.selectedOutputName.endsWith('.json')) {
         try {
@@ -135,33 +275,24 @@ export class JsonEditorComponent implements OnInit, AfterViewInit, OnDestroy {
           // Keep original text if parsing fails
         }
       }
-      
+
       this.editorText = finalText;
-      
-      // Parse JSON structure nếu là file structure (kể cả xxx_structure_ver_N.json)
+
       if (state.selectedOutputName.includes('structure') && state.selectedOutputName.endsWith('.json')) {
         try {
-          let parsed = null;
+          let parsed: any = null;
           let textToParse = text;
-          
-          // Try parsing multiple ways (handle double-escaped JSON)
           try {
             parsed = JSON.parse(textToParse);
-            if (typeof parsed === 'string') {
-              parsed = JSON.parse(parsed);
-            }
+            if (typeof parsed === 'string') parsed = JSON.parse(parsed);
           } catch (e1) {
             if (textToParse.trim().startsWith('"') && textToParse.trim().endsWith('"')) {
               const unescaped = JSON.parse(textToParse);
-              if (typeof unescaped === 'string') {
-                parsed = JSON.parse(unescaped);
-              }
+              if (typeof unescaped === 'string') parsed = JSON.parse(unescaped);
             }
           }
-          
           if (parsed && typeof parsed === 'object') {
             this.documentService.setJsonStructure(parsed);
-            // Also update local structureNodes immediately after parsing
             this.jsonStructure = parsed;
             this.structureNodes = this.buildStructureNodes(parsed);
           } else {
@@ -174,10 +305,9 @@ export class JsonEditorComponent implements OnInit, AfterViewInit, OnDestroy {
           this.documentService.setJsonStructure(null);
         }
       } else {
-        // Clear JSON structure if not a structure.json file
         this.documentService.setJsonStructure(null);
       }
-      
+
       this.editorStatus = 'Loaded';
     } catch (e: any) {
       this.editorStatus = 'Load error';
@@ -225,20 +355,32 @@ export class JsonEditorComponent implements OnInit, AfterViewInit, OnDestroy {
 
   async saveEditor(): Promise<void> {
     const state = this.documentService.state;
-    if (!state.selectedDocId || !state.selectedOutputName) {
-      alert('Chọn doc + output trước.');
+    if (!state.selectedDocId) {
+      alert('Chọn document (job) trước.');
       return;
     }
 
-    const text = this.editorText || '';
+    const text = this.editorText ?? '';
     this.editorStatus = 'Saving...';
-    
+
     try {
+      if (this.isOcrResultMode) {
+        await firstValueFrom(this.ragApi.updateOcrResult(state.selectedDocId, text, this.DEFAULT_TENANT));
+        this.editorStatus = 'Saved (kết quả OCR đã ghi vào DB)';
+        return;
+      }
+
+      if (!state.selectedOutputName) {
+        alert('Chọn file output trước hoặc Load kết quả OCR từ DB rồi chỉnh sửa.');
+        this.editorStatus = '';
+        return;
+      }
+
       await firstValueFrom(this.ragApi.saveEditor(state.selectedDocId, state.selectedOutputName, text, true));
       this.editorStatus = 'Saved';
     } catch (e: any) {
       this.editorStatus = 'Save error';
-      alert('Save failed: ' + e.message);
+      alert('Save failed: ' + (e?.message ?? e));
     }
   }
 

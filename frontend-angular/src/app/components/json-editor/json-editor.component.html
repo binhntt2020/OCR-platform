@@ -34,8 +34,42 @@
 
   <div class="json-editor-scroll-body">
     <section class="editor-section-scroll">
-   
-    
+    <div *ngIf="activeTab === 'json'" class="editor-panel editor-panel--json">
+      <div *ngIf="ocrResultTree?.length" class="ocr-result-tree">
+        <div class="ocr-tree-header">Kết quả OCR (Trang → Vùng → Text). Bấm vùng để xem trên PDF (chỉ hiện 1 vùng). Sửa text / bấm × để xóa, sau đó Lưu.</div>
+        <div class="ocr-tree-list">
+          <ng-container *ngFor="let page of ocrResultTree">
+            <div class="ocr-tree-page">
+              <div class="ocr-tree-page-title">Trang {{ page.page_index + 1 }}</div>
+              <div class="ocr-tree-blocks">
+                <div
+                  *ngFor="let block of page.blocks"
+                  class="ocr-tree-block"
+                  [class.active]="selectedOcrBlockId === (page.page_index + '-' + block.blockIndex)"
+                  (click)="selectOcrBlock(page.page_index, block.blockIndex)">
+                  <div class="ocr-tree-block-row">
+                    <span class="ocr-tree-block-coords">[{{ block.box[0] }}, {{ block.box[1] }}, {{ block.box[2] }}, {{ block.box[3] }}]</span>
+                    <button type="button" class="ocr-tree-block-delete" title="Xóa mục này" (click)="deleteOcrBlock(page.page_index, block.blockIndex); $event.stopPropagation()">×</button>
+                  </div>
+                    <input
+                      class="ocr-tree-block-input"
+                      [value]="block.text"
+                      (input)="updateOcrBlockText(page.page_index, block.blockIndex, $any($event.target).value)"
+                      (click)="$event.stopPropagation()"
+                      placeholder="(trống)">
+                </div>
+              </div>
+            </div>
+          </ng-container>
+        </div>
+      </div>
+      <textarea
+        *ngIf="!ocrResultTree?.length"
+        class="json-editor-textarea"
+        [(ngModel)]="editorText"
+        [placeholder]="ocrResultPlaceholder()"
+        spellcheck="false"></textarea>
+    </div>
     <div *ngIf="activeTab === 'markdown'" class="editor-panel editor-panel--markdown">
       <div class="NgxEditor__Wrapper">
         <ngx-editor-menu [editor]="editor"></ngx-editor-menu>

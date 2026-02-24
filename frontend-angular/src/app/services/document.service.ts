@@ -2,6 +2,12 @@ import { Injectable } from '@angular/core';
 import { BehaviorSubject, Observable } from 'rxjs';
 import { Document, Output, DetectResult } from './rag-api.service';
 
+/** Block OCR được chọn trong tree — dùng để highlight box tương ứng trên PDF */
+export interface SelectedOcrBlock {
+  pageIndex: number;
+  blockIndex: number;
+}
+
 export interface AppState {
   docs: Document[];
   selectedDocId: string | null;
@@ -13,6 +19,8 @@ export interface AppState {
   /** Kết quả Detect (CRAFT) theo docId — vẽ vùng lên PDF */
   detectResult: Record<string, DetectResult>;
   showDetectBboxOnPdf: boolean;
+  /** Block OCR đang chọn (từ tree) — PDF viewer sẽ highlight box tương ứng */
+  selectedOcrBlock: SelectedOcrBlock | null;
 }
 
 @Injectable({
@@ -29,6 +37,7 @@ export class DocumentService {
     showOcrBboxOnPdf: true,
     detectResult: {},
     showDetectBboxOnPdf: true,
+    selectedOcrBlock: null,
   });
 
   state$: Observable<AppState> = this.stateSubject.asObservable();
@@ -77,5 +86,9 @@ export class DocumentService {
 
   setShowDetectBboxOnPdf(value: boolean): void {
     this.stateSubject.next({ ...this.state, showDetectBboxOnPdf: value });
+  }
+
+  setSelectedOcrBlock(block: SelectedOcrBlock | null): void {
+    this.stateSubject.next({ ...this.state, selectedOcrBlock: block });
   }
 }

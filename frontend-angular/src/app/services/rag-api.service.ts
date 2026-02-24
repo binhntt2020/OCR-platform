@@ -79,6 +79,9 @@ export interface OcrJobStatus {
   processed_pages?: number | null;
   progress?: number | null;
   error?: string | null;
+  detect_result?: string | null;
+  /** JSON kết quả OCR (pages, blocks, text) — đọc từ DB, hiển thị/chỉnh sửa trong JSON Editor. */
+  result?: string | null;
 }
 
 export interface OcrJobListItem extends OcrJobStatus {
@@ -209,6 +212,15 @@ export class RagApiService {
     return this.http.patch<{ job_id: string; updated: boolean }>(
       `${this.API_BASE}${OCR_PREFIX}/jobs/${jobId}/detect`,
       body,
+      { headers: { 'Content-Type': 'application/json', 'X-Tenant-Id': xTenantId } }
+    );
+  }
+
+  /** Cập nhật kết quả OCR (JSON) trong DB — dùng khi chỉnh sửa trong JSON Editor. */
+  updateOcrResult(jobId: string, result: string, xTenantId: string = DEFAULT_TENANT): Observable<{ job_id: string; updated: boolean }> {
+    return this.http.patch<{ job_id: string; updated: boolean }>(
+      `${this.API_BASE}${OCR_PREFIX}/jobs/${jobId}/result`,
+      { result },
       { headers: { 'Content-Type': 'application/json', 'X-Tenant-Id': xTenantId } }
     );
   }

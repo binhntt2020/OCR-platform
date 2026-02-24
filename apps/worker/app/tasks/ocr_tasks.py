@@ -129,6 +129,60 @@ def run_job(job_id: str):
 
 
 @shared_task(
+    name="ocr.run_detect_job",
+    autoretry_for=(Exception,),
+    retry_backoff=True,
+    retry_backoff_max=600,
+    retry_jitter=True,
+    retry_kwargs={"max_retries": 2},
+)
+def run_detect_job(job_id: str):
+    """Chỉ chạy Detect (CRAFT) lại, ghi đè detect_result. Dùng khi user bấm 'Chạy lại Detect'."""
+    logger.info("[OCR] Run detect job: job_id=%s", job_id)
+    job = get_job(job_id)
+    if not job:
+        logger.warning("[OCR] Job not found: job_id=%s", job_id)
+        return
+    if not job.get("input_object_key"):
+        logger.warning("[OCR] Missing input_object_key: job_id=%s", job_id)
+        update_job(job_id, status="FAILED", error="missing input_object_key")
+        return
+    update_job(job_id, status="RUNNING", processed_pages=0, progress=0)
+    try:
+        raw = get_bytes(job["input_object_key"])
+        pages = _raw_to_pages(
+            raw,
+            job.get("content_type"),
+            job.get("original_filename"),
+        )
+        if not pages:
+            update_job(job_id, status="FAILED", error="Không đọc được trang nào từ file")
+            return
+        page_count = len(pages)
+        update_job(job_id, page_count=page_count)
+        detect_pages = []
+        for i, img in enumerate(pages):
+            boxes = detect_text_boxes(img)
+            w, h = img.size
+            detect_pages.append({
+                "page_index": i,
+                "width": w,
+                "height": h,
+                "boxes": [{"x1": x1, "y1": y1, "x2": x2, "y2": y2} for (x1, y1, x2, y2) in boxes],
+            })
+        detect_key = f"results/{job['tenant_id']}/{job_id}/detect.json"
+        detect_payload = {"job_id": job_id, "pages": detect_pages}
+        detect_json_str = json.dumps(detect_payload, indent=2)
+        put_bytes(detect_key, detect_json_str.encode("utf-8"), "application/json")
+        update_job(job_id, detect_result=detect_json_str, status="DETECT_DONE")
+        logger.info("[OCR] Chạy lại Detect xong: job_id=%s, %s trang.", job_id, len(detect_pages))
+    except Exception as e:
+        logger.exception("[OCR] Run detect failed: job_id=%s, error=%r", job_id, e)
+        update_job(job_id, status="FAILED", error=str(e))
+        raise
+
+
+@shared_task(
     name="ocr.run_ocr_job",
     autoretry_for=(Exception,),
     retry_backoff=True,

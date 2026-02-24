@@ -72,7 +72,7 @@
                 class="badge"
                 [class.badge-done]="job.status === 'DONE'"
                 [class.badge-fail]="job.status === 'FAILED'"
-                [class.badge-pending]="job.status === 'QUEUED' || job.status === 'RUNNING'"
+                [class.badge-pending]="job.status === 'QUEUED' || job.status === 'RUNNING' || job.status === 'QUEUED_DETECT' || job.status === 'QUEUED_OCR'"
                 [class.badge-detect-done]="job.status === 'DETECT_DONE'">
                 {{ statusLabel(job.status) }}
               </span>
@@ -80,8 +80,9 @@
             <td>{{ job.progress != null ? job.progress + '%' : '—' }}</td>
             <td class="cell-actions">
               <button type="button" class="btn-sm btn-view" (click)="viewJobPdf(job, $event)" title="Xem PDF">Xem PDF</button>
-              <button type="button" class="btn-sm btn-run-ocr" *ngIf="job.status === 'DETECT_DONE'" (click)="runOcrJob(job, $event)" [disabled]="runningOcrJobId === job.job_id" title="Chạy OCR (dùng boxes đã lưu/chỉnh sửa)">Chạy OCR</button>
-              <button type="button" class="btn-sm btn-rerun" (click)="rerunJob(job, $event)" [disabled]="rerunningJobId === job.job_id" title="Chạy lại OCR">Chạy lại</button>
+              <button type="button" class="btn-sm btn-run-detect" *ngIf="job.status === 'DETECT_DONE' || job.status === 'DONE'" (click)="runDetectJob(job, $event)" [disabled]="runningDetectJobId === job.job_id" title="Chạy lại Detect (CRAFT), ghi đè vùng">Chạy lại Detect</button>
+              <button type="button" class="btn-sm btn-run-ocr" *ngIf="job.status === 'DETECT_DONE' || job.status === 'DONE'" (click)="runOcrJob(job, $event)" [disabled]="runningOcrJobId === job.job_id" [title]="job.status === 'DONE' ? 'Chạy lại OCR (dùng boxes hiện tại)' : 'Chạy OCR (dùng boxes đã lưu/chỉnh sửa)'">{{ job.status === 'DONE' ? 'Chạy lại OCR' : 'Chạy OCR' }}</button>
+              <button type="button" class="btn-sm btn-rerun" (click)="rerunJob(job, $event)" [disabled]="rerunningJobId === job.job_id" title="Chạy lại toàn bộ (Detect + OCR)">Chạy lại</button>
             </td>
           </tr>
         </tbody>

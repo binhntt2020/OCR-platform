@@ -207,6 +207,15 @@ export class RagApiService {
     );
   }
 
+  /** Chạy lại Detect (CRAFT), ghi đè detect_result. */
+  runDetectJob(jobId: string, xTenantId: string = DEFAULT_TENANT): Observable<{ job_id: string; worker_queued: boolean }> {
+    return this.http.post<{ job_id: string; worker_queued: boolean }>(
+      `${this.API_BASE}${OCR_PREFIX}/jobs/${jobId}/run-detect`,
+      {},
+      { headers: { 'X-Tenant-Id': xTenantId } }
+    );
+  }
+
   /** Cập nhật kết quả Detect (chỉnh sửa boxes) trong DB. */
   updateDetectResult(jobId: string, body: DetectResult, xTenantId: string = DEFAULT_TENANT): Observable<{ job_id: string; updated: boolean }> {
     return this.http.patch<{ job_id: string; updated: boolean }>(

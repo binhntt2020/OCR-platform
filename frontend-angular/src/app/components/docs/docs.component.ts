@@ -257,6 +257,8 @@ export class DocsComponent implements OnInit, OnDestroy {
   statusLabel(status: string): string {
     const s = (status || '').toUpperCase();
     if (s === 'QUEUED' || s === 'RUNNING') return s;
+    if (s === 'QUEUED_DETECT') return 'Chạy lại Detect…';
+    if (s === 'QUEUED_OCR') return 'Chạy lại OCR…';
     if (s === 'DONE') return 'DONE';
     if (s === 'FAILED') return 'FAILED';
     if (s === 'DETECT_DONE') return 'DETECT_DONE';
@@ -264,6 +266,7 @@ export class DocsComponent implements OnInit, OnDestroy {
   }
 
   runningOcrJobId: string | null = null;
+  runningDetectJobId: string | null = null;
 
   runOcrJob(job: OcrJobListItem, e: Event): void {
     e.stopPropagation();
@@ -276,6 +279,21 @@ export class DocsComponent implements OnInit, OnDestroy {
       },
       error: () => {
         this.runningOcrJobId = null;
+      },
+    });
+  }
+
+  runDetectJob(job: OcrJobListItem, e: Event): void {
+    e.stopPropagation();
+    if (this.runningDetectJobId) return;
+    this.runningDetectJobId = job.job_id;
+    this.ragApi.runDetectJob(job.job_id, this.DEFAULT_TENANT).subscribe({
+      next: () => {
+        this.runningDetectJobId = null;
+        this.loadOcrJobs();
+      },
+      error: () => {
+        this.runningDetectJobId = null;
       },
     });
   }

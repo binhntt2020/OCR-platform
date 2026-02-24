@@ -1,10 +1,9 @@
 """
 Pipeline OCR: Preprocess → CRAFT (detect) → VietOCR (recognize) → Postprocess.
 
-- run_ocr: full pipeline (detect + recognize); không lưu detect vào DB.
-- run_ocr_with_boxes: dùng boxes có sẵn (từ CSDL sau bước Detect, có thể đã chỉnh sửa).
-  Bỏ qua Detect, chỉ Preprocess → Recognize (VietOCR) → Postprocess.
-  Worker gọi hàm này khi chạy run_ocr_job: đọc detect_result từ DB rồi OCR theo từng vùng bằng VietOCR.
+- CRAFT chỉ phát hiện vùng (box); user có thể chỉnh sửa/gộp vùng rồi lưu vào cột detect_result (DB).
+- run_ocr_with_boxes: đọc boxes từ detect_result (DB), Recognize bằng VietOCR. Vùng cao (nhiều dòng)
+  được VietOCR engine tách thành từng dòng rồi ghép kết quả để nội dung khớp PDF.
 """
 from __future__ import annotations
 from PIL import Image
@@ -146,13 +145,15 @@ def run_ocr_with_boxes(
         scale_x = w_prep / w_orig if w_orig else 1.0
         scale_y = h_prep / h_orig if h_orig else 1.0
         boxes_for_crop = []
+        original_heights = []
         for (x1, y1, x2, y2) in boxes_orig:
             x1_s = int(x1 * scale_x)
             y1_s = int(y1 * scale_y)
             x2_s = int(x2 * scale_x)
             y2_s = int(y2 * scale_y)
             boxes_for_crop.append((x1_s, y1_s, x2_s, y2_s))
-        rec = recognize(img_prep, boxes_for_crop)
+            original_heights.append(y2 - y1)
+        rec = recognize(img_prep, boxes_for_crop, original_heights=original_heights)
         texts = postprocess_texts([t for t, _ in rec])
         n = min(len(boxes_orig), len(rec), len(texts))
         blocks = []

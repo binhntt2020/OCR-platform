@@ -1,4 +1,6 @@
-"""VietOCR engine: load model 1 lần/worker process (lru_cache). Config từ infra/system_config.yml (vietocr.config, vietocr.weights, device)."""
+"""VietOCR engine: load model 1 lần/worker process (lru_cache). Config từ infra/system_config.yml (vietocr.config, vietocr.weights, device).
+VietOCR được train cho ảnh một dòng (height≈32). Vùng cao (nhiều dòng) sẽ được tách thành từng dòng, nhận dạng rồi ghép lại.
+"""
 from __future__ import annotations
 import os
 from functools import lru_cache
@@ -7,6 +9,11 @@ from pathlib import Path
 from PIL import Image
 
 from ocr_core.config_loader import get_config, load_system_config, resolve_path
+
+# VietOCR mong đợi ảnh ~1 dòng (height 32). Vùng cao hơn ngưỡng này sẽ tách thành nhiều strip theo chiều ngang.
+MAX_SINGLE_LINE_HEIGHT = 56
+LINE_STRIP_HEIGHT = 32
+LINE_STRIP_OVERLAP = 4
 
 
 def _vietocr_cfg():
@@ -53,14 +60,82 @@ def _prob_to_float(prob) -> float:
     return float(prob) if prob is not None else 1.0
 
 
-def vietocr_predict_batch(model, crops: list[Image.Image]) -> list[tuple[str, float]]:
-    """Predict từng crop; dùng return_prob=True để lấy confidence (tham chiếu OCRPipelineV2.ocr_text)."""
-    out: list[tuple[str, float]] = []
-    for im in crops:
+def _split_tall_crop_into_strips(
+    img: Image.Image,
+    original_height_px: int | None = None,
+) -> list[Image.Image]:
+    """Tách ảnh cao (nhiều dòng) thành các strip ngang ~1 dòng để VietOCR nhận dạng đúng thứ tự.
+    Nếu original_height_px > 56 (chiều cao box gốc từ detect_result), dùng nó để quyết định số strip
+    vì crop có thể đã bị scale nhỏ (preprocess resize)."""
+    w, h = img.size
+    use_original = original_height_px is not None and original_height_px > MAX_SINGLE_LINE_HEIGHT
+    if use_original:
+        # Strip theo chiều cao gốc: mỗi dòng ~32px, overlap 4px. Map tọa độ gốc → crop (crop có thể đã scale)
+        # để tránh cắt qua chữ (vd. "Ban" của dòng 2 lẫn vào strip 1). Số strip = số dòng ước lượng.
+        num_strips = max(1, round(original_height_px / LINE_STRIP_HEIGHT))
+        step_orig = max(1, LINE_STRIP_HEIGHT - LINE_STRIP_OVERLAP)
+        strips = []
+        for i in range(num_strips):
+            y_orig = i * step_orig
+            if i == num_strips - 1:
+                y2_orig = original_height_px
+            else:
+                y2_orig = min(y_orig + LINE_STRIP_HEIGHT, original_height_px)
+            y1_crop = int(y_orig * h / original_height_px)
+            y2_crop = int(y2_orig * h / original_height_px)
+            if y2_crop > y1_crop and (y2_crop - y1_crop) >= 8:
+                strips.append(img.crop((0, y1_crop, w, y2_crop)))
+        return strips if strips else [img]
+    if h <= MAX_SINGLE_LINE_HEIGHT:
+        return [img]
+    step = max(1, LINE_STRIP_HEIGHT - LINE_STRIP_OVERLAP)
+    strips = []
+    y = 0
+    while y < h:
+        y2 = min(y + LINE_STRIP_HEIGHT, h)
+        strip = img.crop((0, y, w, y2))
+        if strip.size[1] >= 8:
+            strips.append(strip)
+        y += step
+    return strips if strips else [img]
+
+
+def _predict_one_crop_maybe_multiline(
+    model,
+    im: Image.Image,
+    original_height_px: int | None = None,
+) -> tuple[str, float]:
+    """Một crop: nếu ảnh cao hoặc original_height_px > 56 thì tách dòng, nhận dạng từng dòng rồi ghép bằng \\n."""
+    strips = _split_tall_crop_into_strips(im, original_height_px)
+    if len(strips) == 1:
         res = model.predict(im, return_prob=True)
         if isinstance(res, tuple):
-            text, prob = res
-            out.append((text, _prob_to_float(prob)))
+            return (res[0], _prob_to_float(res[1]))
+        return (res, 1.0)
+    texts: list[str] = []
+    probs: list[float] = []
+    for strip in strips:
+        res = model.predict(strip, return_prob=True)
+        if isinstance(res, tuple):
+            texts.append(res[0])
+            probs.append(_prob_to_float(res[1]))
         else:
-            out.append((res, 1.0))
+            texts.append(res)
+            probs.append(1.0)
+    joined = "\n".join(texts)
+    conf = min(probs) if probs else 1.0
+    return (joined, conf)
+
+
+def vietocr_predict_batch(
+    model,
+    crops: list[Image.Image],
+    original_heights: list[int] | None = None,
+) -> list[tuple[str, float]]:
+    """Predict từng crop. Crop cao (vùng nhiều dòng) được tách thành dòng, nhận dạng rồi ghép.
+    original_heights: chiều cao box gốc (page coords) từ detect_result; dùng để tách dòng dù crop đã scale."""
+    out: list[tuple[str, float]] = []
+    for i, im in enumerate(crops):
+        oh = original_heights[i] if original_heights and i < len(original_heights) else None
+        out.append(_predict_one_crop_maybe_multiline(model, im, oh))
     return out

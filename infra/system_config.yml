@@ -23,7 +23,7 @@ vietocr:
 # CRAFT/ Text detector
 craft_net:
   weights: models/craft_net/craft_mlt_25k.pth
-  max_side: 1280
+  # //max_side: 1280
 
 refine_net:
   weights: models/refine_net/craft_refiner_CTW1500.pth

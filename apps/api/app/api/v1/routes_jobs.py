@@ -148,7 +148,7 @@ async def rerun_job(
     x_tenant_id: str = Header(default="default"),
     session: AsyncSession = Depends(get_session),
 ):
-    """Gửi lại job vào hàng đợi Celery (chạy lại OCR)."""
+    """Chạy lại: reset job (xóa result) và đưa vào hàng đợi để worker chạy lại Detect. Commit trước khi gửi task để worker thấy status mới."""
     job = await get_job(session, job_id)
     if not job:
         raise HTTPException(404, "job not found")
@@ -156,13 +156,20 @@ async def rerun_job(
         raise HTTPException(403, "tenant mismatch")
     if not job.get("input_object_key"):
         raise HTTPException(400, "Job chưa có file upload, không thể chạy lại.")
+    await update_job(
+        session, job_id,
+        status="QUEUED",
+        error=None,
+        result_object_key=None,
+        result=None,
+    )
+    await session.commit()
     worker_queued = False
     try:
         from app.core.deps import celery_app
         celery_app.send_task("ocr.run_job", args=[job_id])
         worker_queued = True
-        await update_job(session, job_id, status="QUEUED", error=None)
-        logger.info("[OCR] Rerun job: job_id=%s", job_id)
+        logger.info("[OCR] Rerun job: job_id=%s (đã reset result, worker sẽ chạy lại Detect)", job_id)
     except Exception as e:
         logger.warning("Redis/Celery lỗi, không gửi được task: %s", e)
     return {"job_id": job_id, "status": "QUEUED", "worker_queued": worker_queued}
@@ -283,6 +290,32 @@ async def trigger_run_ocr(
         celery_app.send_task("ocr.run_ocr_job", args=[job_id])
         worker_queued = True
         await update_job(session, job_id, status="QUEUED_OCR")
+        await session.commit()
+    except Exception as e:
+        logger.warning("Redis/Celery lỗi: %s", e)
+    return {"job_id": job_id, "worker_queued": worker_queued}
+
+
+@router.post("/jobs/{job_id}/run-detect")
+async def trigger_run_detect(
+    job_id: str,
+    x_tenant_id: str = Header(default="default"),
+    session: AsyncSession = Depends(get_session),
+):
+    """Gửi task chỉ chạy lại Detect (CRAFT), ghi đè detect_result."""
+    job = await get_job(session, job_id)
+    if not job:
+        raise HTTPException(404, "job not found")
+    if job["tenant_id"] != x_tenant_id:
+        raise HTTPException(403, "tenant mismatch")
+    if not job.get("input_object_key"):
+        raise HTTPException(400, "Chưa có file input. Upload file trước.")
+    worker_queued = False
+    try:
+        from app.core.deps import celery_app
+        celery_app.send_task("ocr.run_detect_job", args=[job_id])
+        worker_queued = True
+        await update_job(session, job_id, status="QUEUED_DETECT")
         await session.commit()
     except Exception as e:
         logger.warning("Redis/Celery lỗi: %s", e)

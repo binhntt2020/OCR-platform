@@ -252,6 +252,24 @@
     border-color: #475569;
   }
 
+  &.btn-run-detect {
+    border-color: #84cc16;
+    color: #a3e635;
+
+    &:hover:not(:disabled) {
+      background: #365314;
+    }
+  }
+
+  &.btn-run-ocr {
+    border-color: #0ea5e9;
+    color: #38bdf8;
+
+    &:hover:not(:disabled) {
+      background: #1e3a5f;
+    }
+  }
+
   &.btn-rerun {
     border-color: #0ea5e9;
     color: #38bdf8;

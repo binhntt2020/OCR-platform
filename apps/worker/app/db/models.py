@@ -23,6 +23,7 @@ class OcrJob(Base):
     processed_pages: Mapped[int | None] = mapped_column(Integer, default=0, nullable=True)
     progress: Mapped[int | None] = mapped_column(Integer, default=0, nullable=True)
     error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    detect_result: Mapped[str | None] = mapped_column(Text, nullable=True)  # JSON: { "job_id", "pages": [ { "page_index", "width", "height", "boxes": [...] } ] }
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=text("now()")
     )
@@ -45,6 +46,7 @@ class OcrJob(Base):
             "processed_pages": self.processed_pages,
             "progress": self.progress,
             "error": self.error,
+            "detect_result": self.detect_result,
             "created_at": self.created_at,
             "updated_at": self.updated_at,
         }

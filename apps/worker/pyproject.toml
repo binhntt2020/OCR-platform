@@ -4,16 +4,21 @@ version = "0.1.0"
 description = "OCR Platform Worker"
 requires-python = ">=3.11"
 dependencies = [
-    "celery>=5.4.0",
+    "celery[redis]>=5.4.0",
     "psycopg[binary]>=3.2.0",
+    "sqlalchemy>=2.0",
     "boto3>=1.35.0",
     "pydantic>=2.7.0",
     "pillow>=10.4.0",
+    "pymupdf>=1.24.0",
+    "loguru>=0.7.0",
+    "python-dotenv>=1.0.0",
     "ocr-core",
 ]
 
 [tool.uv.sources]
-ocr-core = { path = "../../libs/ocr_core" }
+# editable = true để uv sync dùng mã trong libs/ocr_core, tránh bản cache gây lỗi numpy array
+ocr-core = { path = "../../libs/ocr_core", editable = true }
 
 [build-system]
 requires = ["hatchling"]

@@ -2,14 +2,16 @@
 Centralized logging configuration using loguru.
 Format: time | level | name | function | message (đồng bộ kiểu với API, có thêm function).
 """
+import os
 import sys
 from loguru import logger
-import config
 
 # Remove default handler
 logger.remove()
 
-_LOG_LEVEL = "DEBUG" if getattr(config, "DEBUGLOGER", False) else "INFO"
+_LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
+if _LOG_LEVEL not in ("DEBUG", "INFO", "WARNING", "ERROR"):
+    _LOG_LEVEL = "INFO"
 _FORMAT_CONSOLE = (
     "<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <8}</level> | "
     "<cyan>{name}</cyan> | <cyan>{function}</cyan> | <level>{message}</level>"

@@ -21,15 +21,17 @@ def _init_redis_and_bucket(**kwargs):
             raise
     else:
         logger.warning("[REDIS] CELERY_BROKER_URL chưa cấu hình")
-    # 2) MinIO/S3 bucket
+    # 2) MinIO/S3 bucket (không crash worker nếu S3 chưa cấu hình; task sẽ lỗi khi gọi get/put)
     try:
-        logger.info("[WORKER] Đang kiểm tra S3 bucket...")
-        from app.services.storage_service import ensure_bucket
-        ensure_bucket()
-        logger.info("[WORKER] ✅ S3 bucket sẵn sàng")
+        if settings.s3_endpoint:
+            logger.info("[WORKER] Đang kiểm tra S3 bucket...")
+            from app.services.storage_service import ensure_bucket
+            ensure_bucket()
+            logger.info("[WORKER] ✅ S3 bucket sẵn sàng")
+        else:
+            logger.warning("[WORKER] S3/MinIO chưa cấu hình (MINIO_ENDPOINT/S3_ENDPOINT); task OCR sẽ lỗi khi đọc/ghi file.")
     except Exception:
-        logger.exception("[WORKER] ❌ Không đảm bảo được S3 bucket")
-        raise
+        logger.exception("[WORKER] ⚠️ Không đảm bảo được S3 bucket; worker vẫn chạy, task có thể lỗi khi dùng storage.")
 
 
 celery_app = Celery(

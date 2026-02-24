@@ -23,8 +23,23 @@
         (click)="documentService.setShowDetectBboxOnPdf(!documentService.state.showDetectBboxOnPdf)"
         class="toggle-coords-btn"
         [class.active]="documentService.state.showDetectBboxOnPdf"
-        [title]="documentService.state.showDetectBboxOnPdf ? 'Ẩn vùng Detect (CRAFT)' : 'Hiện vùng Detect (CRAFT)'">
-        🔲 {{ documentService.state.showDetectBboxOnPdf ? 'Ẩn vùng Detect' : 'Hiện vùng Detect' }}
+        [title]="documentService.state.showDetectBboxOnPdf ? 'Ẩn vùng Detect (CRAFT)' : 'Hiện vùng Detect — Kéo di chuyển, góc đổi cỡ, × xóa'">
+        □ {{ documentService.state.showDetectBboxOnPdf ? 'Ẩn vùng Detect' : 'Ấn vùng Detect' }}
+      </button>
+      <button 
+        *ngIf="showPdf && !showPlaceholder && editableDetectResult && documentService.state.showDetectBboxOnPdf"
+        (click)="undoDetect()"
+        [disabled]="!canUndoDetect"
+        class="toggle-coords-btn btn-undo-detect"
+        title="Hoàn tác (undo) thao tác vừa rồi: xóa, thêm ô, di chuyển hoặc đổi cỡ">
+        ↩ Hoàn tác
+      </button>
+      <button 
+        *ngIf="showPdf && !showPlaceholder && editableDetectResult && documentService.state.showDetectBboxOnPdf"
+        (click)="addNewDetectBox()"
+        class="toggle-coords-btn btn-add-detect"
+        title="Thêm một ô vùng detect mới vào trang đầu (có thể kéo/đổi cỡ sau)">
+        ➕ Thêm ô
       </button>
       <button 
         *ngIf="showPdf && !showPlaceholder && editableDetectResult && documentService.state.showDetectBboxOnPdf"
@@ -35,6 +50,7 @@
         {{ savingDetect ? 'Đang lưu...' : '💾 Lưu vùng Detect' }}
       </button>
       <span *ngIf="saveDetectMessage" class="save-detect-msg">{{ saveDetectMessage }}</span>
+      <span *ngIf="showPdf && !showPlaceholder && documentService.state.showDetectBboxOnPdf && editableDetectResult" class="detect-hint">Kéo ô để di chuyển · Góc để đổi cỡ · × để xóa</span>
       <button 
         *ngIf="showPdf && !showPlaceholder"
         (click)="toggleFullscreen()"

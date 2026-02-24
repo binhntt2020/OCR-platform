@@ -220,7 +220,7 @@ h2 {
     pointer-events: none; // Background không chặn click
   }
 
-  /* Khi đang chỉnh vùng Detect: bật pointer-events để kéo / co giãn / xóa hoạt động (ưu tiên hơn .active) */
+  /* Khi hiện vùng Detect: bật pointer-events để nút × và kéo/đổi cỡ hoạt động */
   &.editable-detect-active {
     pointer-events: auto;
   }
@@ -1004,26 +1004,26 @@ h2 {
   }
 }
 
-/* Ô vuông đánh dấu vùng Detect — luôn thấy rõ, dễ kéo/đổi cỡ/xóa */
+/* Ô vuông vùng Detect — viền đỏ rõ, nền trắng mờ để đọc được chữ bên dưới */
 .pdf-detect-bbox-wrapper {
   position: absolute;
-  border: 2px solid #0ea5e9;
-  background: rgba(14, 165, 233, 0.35);
+  border: 2px solid #dc2626;
+  background: rgba(255, 255, 255, 0.25);
   cursor: move;
   box-sizing: border-box;
   z-index: 102;
-  border-radius: 2px;
+  border-radius: 1px;
   min-width: 20px;
   min-height: 20px;
   user-select: none;
   overflow: visible;
-  /* Viền và nền rõ để không bị lẫn với chữ */
-  box-shadow: 0 0 0 1px rgba(14, 165, 233, 0.5);
+  pointer-events: auto;
+  box-shadow: 0 0 0 1px rgba(220, 38, 38, 0.4);
 
   &:hover {
-    border-color: #0284c7;
-    background: rgba(14, 165, 233, 0.45);
-    box-shadow: 0 0 0 1px #0284c7;
+    border-color: #ef4444;
+    background: rgba(255, 255, 255, 0.35);
+    box-shadow: 0 0 0 1px rgba(239, 68, 68, 0.6);
   }
 }
 
@@ -1031,12 +1031,11 @@ h2 {
   width: 100%;
   height: 100%;
   pointer-events: auto;
-  /* Ô vuông bên trong cũng có viền nhẹ để vùng luôn thấy */
-  border: 1px solid rgba(14, 165, 233, 0.6);
+  border: none;
   box-sizing: border-box;
 }
 
-/* Góc dưới phải: kéo để co giãn rộng/cao */
+/* Góc dưới phải: kéo để đổi kích thước (chỉnh sửa) */
 .pdf-detect-resize-handle {
   position: absolute;
   right: 0;
@@ -1045,8 +1044,8 @@ h2 {
   height: 14px;
   cursor: nwse-resize;
   pointer-events: auto;
-  background: rgba(14, 165, 233, 0.7);
-  border: 1px solid #0ea5e9;
+  background: rgba(220, 38, 38, 0.85);
+  border: 1px solid #dc2626;
   border-radius: 0 0 2px 0;
   z-index: 2;
 
@@ -1062,39 +1061,40 @@ h2 {
   }
 
   &:hover {
-    background: rgba(14, 165, 233, 0.95);
+    background: rgba(239, 68, 68, 0.95);
   }
 }
 
-/* Nút xóa vùng — nhỏ gọn, không che hết ô vuông */
-.pdf-detect-delete {
-  position: absolute;
-  top: -6px;
-  right: -6px;
-  width: 18px;
-  height: 18px;
-  padding: 0;
-  border: 1px solid #dc2626;
-  background: #b91c1c;
-  color: #fff;
-  font-size: 12px;
-  font-weight: bold;
-  line-height: 1;
-  cursor: pointer;
-  pointer-events: auto;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 103;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+/* Nút × xóa vùng — ô đen nhỏ, chữ X trắng, cạnh trái vùng detect */
+// .pdf-detect-delete {
+//   position: absolute;
+//   top: 50%;
+//   left: -10px;
+//   transform: translateY(-50%);
+//   width: 18px;
+//   height: 18px;
+//   padding: 0;
+//   border: none;
+//   background: #1f2937;
+//   color: #fff;
+//   font-size: 12px;
+//   font-weight: bold;
+//   line-height: 1;
+//   cursor: pointer;
+//   pointer-events: auto;
+//   border-radius: 0;
+//   display: flex;
+//   align-items: center;
+//   justify-content: center;
+//   z-index: 103;
+//   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
 
-  &:hover {
-    background: #dc2626;
-    border-color: #f87171;
-    transform: scale(1.15);
-  }
-}
+//   &:hover {
+//     background: #dc2626;
+//     color: #fff;
+//     transform: translateY(-50%) scale(1.1);
+//   }
+// }
 
 .btn-save-detect {
   margin-left: 4px;
@@ -1104,4 +1104,10 @@ h2 {
   font-size: 12px;
   color: #94a3b8;
   margin-left: 6px;
+}
+
+.detect-hint {
+  font-size: 11px;
+  color: #64748b;
+  white-space: nowrap;
 }

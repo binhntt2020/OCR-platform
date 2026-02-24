@@ -43,7 +43,7 @@ export class PdfViewerComponent implements OnInit, AfterViewInit, OnDestroy {
   pdfLoadError: string | null = null;
   
   /** Hiển thị tọa độ cố định khi di chuột */
-  showCoordinates = true;
+  showCoordinates = false;
   /** Hiển thị OCR bbox trên PDF (đồng bộ với documentService.state.showOcrBboxOnPdf) */
   get showOcrBbox(): boolean {
     return this.documentService.state.showOcrBboxOnPdf;
@@ -92,6 +92,10 @@ export class PdfViewerComponent implements OnInit, AfterViewInit, OnDestroy {
   savingDetect = false;
   /** Thông báo sau khi lưu Detect */
   saveDetectMessage = '';
+
+  /** Stack để hoàn tác (undo) khi xóa/thêm/chỉnh ô detect — tối đa 30 bước */
+  private detectUndoStack: DetectResult[] = [];
+  private static readonly DETECT_UNDO_MAX = 30;
 
   private destroy$ = new Subject<void>();
   private static readonly PDF_TO_IMAGE = 150 / 72;
@@ -177,9 +181,11 @@ export class PdfViewerComponent implements OnInit, AfterViewInit, OnDestroy {
       if (!state.selectedDocId || !state.detectResult[state.selectedDocId]) {
         this.editableDetectResult = null;
         this.lastEditableDetectDocId = null;
+        this.detectUndoStack = [];
       } else if (this.lastEditableDetectDocId !== state.selectedDocId) {
         this.editableDetectResult = this.deepCopyDetectResult(state.detectResult[state.selectedDocId]);
         this.lastEditableDetectDocId = state.selectedDocId;
+        this.detectUndoStack = [];
       }
     });
   }
@@ -518,6 +524,7 @@ export class PdfViewerComponent implements OnInit, AfterViewInit, OnDestroy {
         rect.addEventListener('mousedown', (e: MouseEvent) => {
           e.preventDefault();
           e.stopPropagation();
+          this.pushDetectUndo();
           this.detectDrag = { pageIndex, boxIndex: idx, startLeft: wrapper.offsetLeft, startTop: wrapper.offsetTop, startClientX: e.clientX, startClientY: e.clientY, el: wrapper };
         });
 
@@ -527,6 +534,7 @@ export class PdfViewerComponent implements OnInit, AfterViewInit, OnDestroy {
         resizeHandle.addEventListener('mousedown', (e: MouseEvent) => {
           e.preventDefault();
           e.stopPropagation();
+          this.pushDetectUndo();
           this.detectResize = { pageIndex, boxIndex: idx, startLeft: wrapper.offsetLeft, startTop: wrapper.offsetTop, startW: wrapper.offsetWidth, startH: wrapper.offsetHeight, startClientX: e.clientX, startClientY: e.clientY, el: wrapper };
         });
 
@@ -551,7 +559,60 @@ export class PdfViewerComponent implements OnInit, AfterViewInit, OnDestroy {
 
   private removeDetectBox(pageIndex: number, boxIndex: number): void {
     if (!this.editableDetectResult?.pages?.[pageIndex]?.boxes) return;
+    this.pushDetectUndo();
     this.editableDetectResult.pages[pageIndex].boxes.splice(boxIndex, 1);
+    this.cdr.markForCheck();
+    setTimeout(() => this.renderPdfAnnotations(), 0);
+  }
+
+  /** Lưu trạng thái hiện tại vào stack undo trước khi sửa (xóa/thêm/di chuyển/đổi cỡ). */
+  private pushDetectUndo(): void {
+    if (!this.editableDetectResult) return;
+    const copy = this.deepCopyDetectResult(this.editableDetectResult);
+    this.detectUndoStack.push(copy);
+    if (this.detectUndoStack.length > PdfViewerComponent.DETECT_UNDO_MAX) {
+      this.detectUndoStack.shift();
+    }
+  }
+
+  /** Hoàn tác một bước (khôi phục trạng thái trước khi xóa/thêm/chỉnh). */
+  undoDetect(): void {
+    if (this.detectUndoStack.length === 0 || !this.editableDetectResult) return;
+    const prev = this.detectUndoStack.pop()!;
+    this.editableDetectResult.job_id = prev.job_id;
+    this.editableDetectResult.pages = prev.pages.map(p => ({
+      page_index: p.page_index,
+      width: p.width,
+      height: p.height,
+      boxes: (p.boxes || []).map(b => ({ x1: b.x1, y1: b.y1, x2: b.x2, y2: b.y2 })),
+    }));
+    this.cdr.markForCheck();
+    setTimeout(() => this.renderPdfAnnotations(), 0);
+  }
+
+  /** Có thể undo (stack không rỗng). */
+  get canUndoDetect(): boolean {
+    return this.detectUndoStack.length > 0 && !!this.editableDetectResult;
+  }
+
+  /** Thêm một ô detect mới vào trang đầu (trang 0). User có thể kéo/đổi cỡ sau. */
+  addNewDetectBox(): void {
+    if (!this.editableDetectResult?.pages?.length) return;
+    this.pushDetectUndo();
+    const page0 = this.editableDetectResult.pages[0];
+    const w = page0.width || 2480;
+    const h = page0.height || 3508;
+    const margin = 80;
+    const boxW = 200;
+    const boxH = 36;
+    const newBox = {
+      x1: margin,
+      y1: margin,
+      x2: margin + boxW,
+      y2: margin + boxH,
+    };
+    if (!page0.boxes) page0.boxes = [];
+    page0.boxes.push(newBox);
     this.cdr.markForCheck();
     setTimeout(() => this.renderPdfAnnotations(), 0);
   }

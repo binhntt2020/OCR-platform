@@ -78,3 +78,95 @@ button {
 
 // Import github-markdown-css for beautiful markdown styling
 @import 'github-markdown-css/github-markdown.css';
+
+/* Ô vùng Detect (tạo bằng JS) — style global để áp dụng vì không nằm trong template Angular */
+.pdf-annotations-overlay {
+  .pdf-detect-bbox-wrapper {
+    position: absolute;
+    border: 0.5px solid #8cc963;
+    background: rgba(255, 255, 255, 0.25);
+    cursor: move;
+    box-sizing: border-box;
+    z-index: 102;
+    border-radius: 1px;
+    min-width: 20px;
+    min-height: 20px;
+    user-select: none;
+    overflow: visible;
+    pointer-events: auto;
+
+    &:hover {
+      border-color: #ef4444;
+      background: rgba(255, 255, 255, 0.35);
+      box-shadow: 0 0 0 1px rgba(239, 68, 68, 0.6);
+    }
+  }
+
+  .pdf-detect-bbox {
+    width: 100%;
+    height: 100%;
+    pointer-events: auto;
+    border: none;
+    box-sizing: border-box;
+  }
+
+  .pdf-detect-resize-handle {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    width: 14px;
+    height: 14px;
+    cursor: nwse-resize;
+    pointer-events: auto;
+    background: rgba(220, 38, 38, 0.85);
+    border: 1px solid #dc2626;
+    border-radius: 0 0 2px 0;
+    z-index: 2;
+
+    &::after {
+      content: '';
+      position: absolute;
+      right: 2px;
+      bottom: 2px;
+      width: 6px;
+      height: 6px;
+      border-right: 2px solid #fff;
+      border-bottom: 2px solid #fff;
+    }
+
+    &:hover {
+      background: rgba(239, 68, 68, 0.95);
+    }
+  }
+
+  .pdf-detect-delete {
+    position: absolute;
+    top: 50%;
+    left: -10px;
+    transform: translateY(-50%);
+    width: 18px;
+    height: 18px;
+    padding: 0;
+    border: none;
+    background: #1f2937;
+    color: #fff;
+    font-size: 12px;
+    font-weight: bold;
+    line-height: 1;
+    cursor: pointer;
+    pointer-events: auto;
+    border-radius: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 103;
+    //box-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);\
+    border-radius: 7px;
+
+    &:hover {
+      background: #dc2626;
+      color: #fff;
+      transform: translateY(-50%) scale(1.1);
+    }
+  }
+}

@@ -7,7 +7,17 @@ dependencies = [
     "pydantic>=2.7.0",
     "pillow>=10.4.0",
     "numpy>=2.0.0",
+    "pyyaml>=6.0",
+    "torch>=2.0.0",
+    "torchvision>=0.15.0",
+    "opencv-python-headless>=4.8.0",
+    "vietocr",
+    "craft-text-detector",
 ]
+
+[tool.uv.sources]
+vietocr = { path = "../vietocr" }
+craft-text-detector = { path = "../craft-text-detector" }
 
 [build-system]
 requires = ["hatchling"]

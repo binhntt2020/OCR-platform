@@ -72,13 +72,15 @@
                 class="badge"
                 [class.badge-done]="job.status === 'DONE'"
                 [class.badge-fail]="job.status === 'FAILED'"
-                [class.badge-pending]="job.status === 'QUEUED' || job.status === 'RUNNING'">
+                [class.badge-pending]="job.status === 'QUEUED' || job.status === 'RUNNING'"
+                [class.badge-detect-done]="job.status === 'DETECT_DONE'">
                 {{ statusLabel(job.status) }}
               </span>
             </td>
             <td>{{ job.progress != null ? job.progress + '%' : '—' }}</td>
             <td class="cell-actions">
               <button type="button" class="btn-sm btn-view" (click)="viewJobPdf(job, $event)" title="Xem PDF">Xem PDF</button>
+              <button type="button" class="btn-sm btn-run-ocr" *ngIf="job.status === 'DETECT_DONE'" (click)="runOcrJob(job, $event)" [disabled]="runningOcrJobId === job.job_id" title="Chạy OCR (dùng boxes đã lưu/chỉnh sửa)">Chạy OCR</button>
               <button type="button" class="btn-sm btn-rerun" (click)="rerunJob(job, $event)" [disabled]="rerunningJobId === job.job_id" title="Chạy lại OCR">Chạy lại</button>
             </td>
           </tr>

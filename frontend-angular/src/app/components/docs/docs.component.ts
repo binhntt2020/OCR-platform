@@ -166,6 +166,8 @@ export class DocsComponent implements OnInit, OnDestroy {
               if (fileInput) fileInput.value = '';
               this.loadOcrJobs();
               this.isUploading = false;
+              // Poll kết quả Detect để vẽ vùng lên PDF (worker ghi detect.json sau vài giây)
+              this.pollDetectResult(doc.id);
             }
             if (ev.error) {
               this.uploadLog = [...this.uploadLog, 'Lỗi: ' + ev.error];
@@ -198,6 +200,19 @@ export class DocsComponent implements OnInit, OnDestroy {
     });
   }
 
+  /** Gọi API Detect vài lần sau upload để lấy boxes vẽ lên PDF. */
+  private pollDetectResult(docId: string, attempt = 0, maxAttempts = 30): void {
+    if (attempt >= maxAttempts) return;
+    this.ragApi.getDetectResult(docId, this.DEFAULT_TENANT).subscribe({
+      next: (data) => {
+        this.documentService.setDetectResult(docId, data);
+      },
+      error: () => {
+        setTimeout(() => this.pollDetectResult(docId, attempt + 1, maxAttempts), 2000);
+      },
+    });
+  }
+
   rerunJob(job: OcrJobListItem, e: Event): void {
     e.stopPropagation();
     if (this.rerunningJobId) return;
@@ -226,6 +241,13 @@ export class DocsComponent implements OnInit, OnDestroy {
     if (!currentDocs.find(d => d.id === job.job_id)) {
       this.documentService.setDocs([...currentDocs, doc]);
     }
+    // Thử tải kết quả Detect nếu chưa có (để vẽ vùng lên PDF)
+    if (!this.documentService.state.detectResult[job.job_id]) {
+      this.ragApi.getDetectResult(job.job_id, this.DEFAULT_TENANT).subscribe({
+        next: (data) => this.documentService.setDetectResult(job.job_id, data),
+        error: () => {},
+      });
+    }
   }
 
   shortId(id: string): string {
@@ -237,7 +259,25 @@ export class DocsComponent implements OnInit, OnDestroy {
     if (s === 'QUEUED' || s === 'RUNNING') return s;
     if (s === 'DONE') return 'DONE';
     if (s === 'FAILED') return 'FAILED';
+    if (s === 'DETECT_DONE') return 'DETECT_DONE';
     return status || '—';
+  }
+
+  runningOcrJobId: string | null = null;
+
+  runOcrJob(job: OcrJobListItem, e: Event): void {
+    e.stopPropagation();
+    if (this.runningOcrJobId) return;
+    this.runningOcrJobId = job.job_id;
+    this.ragApi.runOcrJob(job.job_id, this.DEFAULT_TENANT).subscribe({
+      next: () => {
+        this.runningOcrJobId = null;
+        this.loadOcrJobs();
+      },
+      error: () => {
+        this.runningOcrJobId = null;
+      },
+    });
   }
 
   async loadDocs(): Promise<void> {

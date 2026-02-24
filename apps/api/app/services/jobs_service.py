@@ -22,6 +22,7 @@ ALLOWED_UPDATE_FIELDS = frozenset({
     "processed_pages",
     "progress",
     "error",
+    "detect_result",
 })
 
 

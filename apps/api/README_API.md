@@ -79,6 +79,13 @@ curl -X POST "http://localhost:8000/v1/ocr/jobs/<JOB_ID>/upload" \
 curl http://localhost:8000/v1/ocr/jobs/<JOB_ID> -H "X-Tenant-Id: demo"
 ```
 
+### Luồng Detect → chỉnh sửa → OCR
+
+- Sau upload, worker chạy **Detect** (CRAFT), lưu kết quả vào DB (`detect_result`) và MinIO; status = `DETECT_DONE`.
+- **GET** `/v1/ocr/jobs/<JOB_ID>` trả về `detect_result` (JSON). **GET** `/v1/ocr/jobs/<JOB_ID>/detect` trả về cùng nội dung (ưu tiên DB).
+- **PATCH** `/v1/ocr/jobs/<JOB_ID>/detect` — body JSON `{ "job_id", "pages": [ { "page_index", "width", "height", "boxes": [...] } ] }` — cập nhật `detect_result` trong DB (chỉnh sửa boxes trước khi OCR).
+- **POST** `/v1/ocr/jobs/<JOB_ID>/run-ocr` — gửi task `ocr.run_ocr_job` (chạy Recognize dùng `detect_result` trong DB), sau khi chỉnh sửa xong.
+
 ### Unit test (khi đã thêm pytest)
 
 ```bash
@@ -87,6 +94,16 @@ uv run pytest tests/ -v
 ```
 
 (Hiện tại `tests/` có thể trống; thêm test rồi dùng lệnh trên.)
+
+### Migration DB: cột `detect_result`
+
+Nếu bảng `ocr_jobs` đã tồn tại, chạy migration một lần:
+
+```bash
+psql "$DATABASE_URL" -f infra/migrations/add_ocr_jobs_detect_result.sql
+```
+
+Hoặc với SQLAlchemy `create_all`, đảm bảo model đã có cột `detect_result` rồi tạo bảng mới / thêm cột thủ công.
 
 ### Lint & type check (Ruff + Pyright)
 
@@ -277,3 +294,5 @@ Celery giúp bạn chạy các công việc nặng (OCR, gửi email, xử lý �
         Worker → nhận task → chạy OCR
 
 Một hệ thống giúp chạy các công việc nặng ở background, thông qua queue (Redis/RabbitMQ), tách biệt API và Worker.
+    cd /mnt/data/code/ocr-platform/apps/worker
+    uv run celery -A app.worker:celery_app worker -l info

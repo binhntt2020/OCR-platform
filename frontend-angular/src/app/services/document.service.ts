@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { BehaviorSubject, Observable } from 'rxjs';
-import { Document, Output } from './rag-api.service';
+import { Document, Output, DetectResult } from './rag-api.service';
 
 export interface AppState {
   docs: Document[];
@@ -10,6 +10,9 @@ export interface AppState {
   jsonStructure: any | null;
   pdfViewerComponentRef: any | null; // Reference to PDF viewer component
   showOcrBboxOnPdf: boolean;
+  /** Kết quả Detect (CRAFT) theo docId — vẽ vùng lên PDF */
+  detectResult: Record<string, DetectResult>;
+  showDetectBboxOnPdf: boolean;
 }
 
 @Injectable({
@@ -23,7 +26,9 @@ export class DocumentService {
     selectedOutputName: null,
     jsonStructure: null,
     pdfViewerComponentRef: null,
-    showOcrBboxOnPdf: true
+    showOcrBboxOnPdf: true,
+    detectResult: {},
+    showDetectBboxOnPdf: true,
   });
 
   state$: Observable<AppState> = this.stateSubject.asObservable();
@@ -62,5 +67,15 @@ export class DocumentService {
 
   setShowOcrBboxOnPdf(value: boolean): void {
     this.stateSubject.next({ ...this.state, showOcrBboxOnPdf: value });
+  }
+
+  setDetectResult(docId: string, data: DetectResult | null): void {
+    const next = { ...this.state.detectResult };
+    if (data) next[docId] = data; else delete next[docId];
+    this.stateSubject.next({ ...this.state, detectResult: next });
+  }
+
+  setShowDetectBboxOnPdf(value: boolean): void {
+    this.stateSubject.next({ ...this.state, showDetectBboxOnPdf: value });
   }
 }

@@ -220,6 +220,11 @@ h2 {
     pointer-events: none; // Background không chặn click
   }
 
+  /* Khi đang chỉnh vùng Detect: bật pointer-events để kéo / co giãn / xóa hoạt động (ưu tiên hơn .active) */
+  &.editable-detect-active {
+    pointer-events: auto;
+  }
+
   // Chỉ các marker/icon mới có pointer events
   .pdf-annotation-marker,
   .pdf-start-marker {
@@ -997,4 +1002,106 @@ h2 {
     background: rgba(30, 41, 59, 0.6);
     font-family: inherit;
   }
+}
+
+/* Ô vuông đánh dấu vùng Detect — luôn thấy rõ, dễ kéo/đổi cỡ/xóa */
+.pdf-detect-bbox-wrapper {
+  position: absolute;
+  border: 2px solid #0ea5e9;
+  background: rgba(14, 165, 233, 0.35);
+  cursor: move;
+  box-sizing: border-box;
+  z-index: 102;
+  border-radius: 2px;
+  min-width: 20px;
+  min-height: 20px;
+  user-select: none;
+  overflow: visible;
+  /* Viền và nền rõ để không bị lẫn với chữ */
+  box-shadow: 0 0 0 1px rgba(14, 165, 233, 0.5);
+
+  &:hover {
+    border-color: #0284c7;
+    background: rgba(14, 165, 233, 0.45);
+    box-shadow: 0 0 0 1px #0284c7;
+  }
+}
+
+.pdf-detect-bbox {
+  width: 100%;
+  height: 100%;
+  pointer-events: auto;
+  /* Ô vuông bên trong cũng có viền nhẹ để vùng luôn thấy */
+  border: 1px solid rgba(14, 165, 233, 0.6);
+  box-sizing: border-box;
+}
+
+/* Góc dưới phải: kéo để co giãn rộng/cao */
+.pdf-detect-resize-handle {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 14px;
+  height: 14px;
+  cursor: nwse-resize;
+  pointer-events: auto;
+  background: rgba(14, 165, 233, 0.7);
+  border: 1px solid #0ea5e9;
+  border-radius: 0 0 2px 0;
+  z-index: 2;
+
+  &::after {
+    content: '';
+    position: absolute;
+    right: 2px;
+    bottom: 2px;
+    width: 6px;
+    height: 6px;
+    border-right: 2px solid #fff;
+    border-bottom: 2px solid #fff;
+  }
+
+  &:hover {
+    background: rgba(14, 165, 233, 0.95);
+  }
+}
+
+/* Nút xóa vùng — nhỏ gọn, không che hết ô vuông */
+.pdf-detect-delete {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 1px solid #dc2626;
+  background: #b91c1c;
+  color: #fff;
+  font-size: 12px;
+  font-weight: bold;
+  line-height: 1;
+  cursor: pointer;
+  pointer-events: auto;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 103;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+
+  &:hover {
+    background: #dc2626;
+    border-color: #f87171;
+    transform: scale(1.15);
+  }
+}
+
+.btn-save-detect {
+  margin-left: 4px;
+}
+
+.save-detect-msg {
+  font-size: 12px;
+  color: #94a3b8;
+  margin-left: 6px;
 }

@@ -20,3 +20,4 @@ class JobStatusResponse(BaseModel):
     processed_pages: Optional[int] = None
     progress: Optional[int] = None
     error: Optional[str] = None
+    detect_result: Optional[str] = None  # JSON kết quả Detect (CRAFT), có thể chỉnh sửa trước khi chạy OCR

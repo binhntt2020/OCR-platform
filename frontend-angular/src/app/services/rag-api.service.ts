@@ -93,6 +93,17 @@ export interface UploadProgressEvent {
   error?: string;
 }
 
+/** Kết quả Detect (CRAFT) từng trang — dùng vẽ vùng lên PDF. */
+export interface DetectResult {
+  job_id: string;
+  pages: Array<{
+    page_index: number;
+    width: number;
+    height: number;
+    boxes: Array<{ x1: number; y1: number; x2: number; y2: number }>;
+  }>;
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -169,11 +180,36 @@ export class RagApiService {
     });
   }
 
+  /** Kết quả Detect (CRAFT boxes) cho job — vẽ vùng lên PDF. 404 khi worker chưa ghi xong. */
+  getDetectResult(jobId: string, xTenantId: string = DEFAULT_TENANT): Observable<DetectResult> {
+    return this.http.get<DetectResult>(`${this.API_BASE}${OCR_PREFIX}/jobs/${jobId}/detect`, {
+      headers: { 'X-Tenant-Id': xTenantId }
+    });
+  }
+
   rerunOcrJob(jobId: string, xTenantId: string = DEFAULT_TENANT): Observable<{ job_id: string; status: string; worker_queued: boolean }> {
     return this.http.post<{ job_id: string; status: string; worker_queued: boolean }>(
       `${this.API_BASE}${OCR_PREFIX}/jobs/${jobId}/rerun`,
       {},
       { headers: { 'X-Tenant-Id': xTenantId } }
+    );
+  }
+
+  /** Chạy bước OCR (recognize) dùng detect_result trong DB — gọi sau khi đã chỉnh sửa boxes (nếu cần). */
+  runOcrJob(jobId: string, xTenantId: string = DEFAULT_TENANT): Observable<{ job_id: string; worker_queued: boolean }> {
+    return this.http.post<{ job_id: string; worker_queued: boolean }>(
+      `${this.API_BASE}${OCR_PREFIX}/jobs/${jobId}/run-ocr`,
+      {},
+      { headers: { 'X-Tenant-Id': xTenantId } }
+    );
+  }
+
+  /** Cập nhật kết quả Detect (chỉnh sửa boxes) trong DB. */
+  updateDetectResult(jobId: string, body: DetectResult, xTenantId: string = DEFAULT_TENANT): Observable<{ job_id: string; updated: boolean }> {
+    return this.http.patch<{ job_id: string; updated: boolean }>(
+      `${this.API_BASE}${OCR_PREFIX}/jobs/${jobId}/detect`,
+      body,
+      { headers: { 'Content-Type': 'application/json', 'X-Tenant-Id': xTenantId } }
     );
   }
 

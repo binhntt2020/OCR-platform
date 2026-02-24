@@ -1,0 +1,67 @@
+dtree:
+  config: models/dtree/config.yml
+
+# Document header detection
+decto:
+  config: models/decto/config_30_6.yml
+  weights: models/decto/model_30_6.pth
+
+resnet:
+  config: models/doc/config.yml
+  weights: models/doc/model.pth
+
+layoutlm:
+  labels: models/layoutlm/ner_tags_conversion.json
+  checkpoint: models/layoutlm/layoutxlm-base-finetuned-final
+
+# OCR
+vietocr:
+  config: models/ocr/config.yml
+  weights: models/ocr/model.pth
+
+
+# CRAFT/ Text detector
+craft_net:
+  weights: models/craft_net/craft_mlt_25k.pth
+  max_side: 1280
+
+refine_net:
+  weights: models/refine_net/craft_refiner_CTW1500.pth
+
+# Surya
+text_detection:
+  checkpoint: models/text_detection
+
+table_recognition:
+  checkpoint: models/table_recognition
+
+layout_detection:
+  checkpoint: models/layout_detection
+
+#UniTable
+table_structure:
+  weights: models/table_structure/UniStruct_model.pt
+  vocab: models/table_structure/UniStruct_vocab.json
+  config: models/table_structure/UniStruct_config.yml
+
+table_bbox:
+  weights: models/table_bbox/UniBbox_model.pt
+  vocab: models/table_bbox/UniBbox_vocab.json
+  config: models/table_bbox/UniBbox_config.yml
+
+table_content:
+  weights: models/table_content/UniContent_model.pt
+  vocab: models/table_content/UniContent_vocab.json
+  config: models/table_content/UniContent_config.yml
+
+# Spelling correction
+vietnamese_correctionv2:
+  checkpoint: models/vietnamese_correction_v2
+
+# hOCR & PDF layer
+hocr_template: models/hocr/template.hocr
+invisible_font: models/hocr/font.ttf
+response_schema: app/config/sample.schema
+
+cccd_model:
+  checkpoint: models/layoutxlm-base-finetuned-cccd
